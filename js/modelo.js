@@ -127,7 +127,7 @@
     // ================================================================ boi gordo
     const anc = D.anc.boi, va = D.gordo;
     // Brasil: série âncora (US$/kg carcaça) + Indicador do Boi DATAGRO dia a dia (série de 2026 e primitiva) + o de hoje (R$/@ ÷ 15 ÷ dólar).
-    // Dia do DATAGRO com o próprio dólar (PTAX) vale mais que a âncora: o fim da âncora (mai/2026) foi preenchido à mão, ~6 % acima.
+    // Dia do DATAGRO com o próprio dólar (PTAX) vale mais que a âncora: os últimos dias da âncora (29/04 a 05/05/2026) estavam 3–5 % acima.
     const ancFim = anc.d[anc.d.length - 1] || "";
     const brMapa = new Map(); anc.d.forEach((d, i) => brMapa.set(d, anc.br[i]));
     const ptsBr = ((D.br && D.br.pontos) || []).slice();
