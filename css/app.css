@@ -59,6 +59,8 @@ body.leve .foto, body.leve .bolha { animation: none; }
 .marca-nome { font: 500 1.55rem/1 "Marca Ypoti", var(--fonte-disp); letter-spacing: -.03em; white-space: nowrap;
   background: linear-gradient(180deg, #FFFFFF 0%, #F1F6EF 45%, #BFE3CB 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 1px 10px rgba(0,0,0,.3)); }
 .segmentado { display: inline-flex; padding: .2rem; border-radius: 999px; background: rgba(0,0,0,.28); border: 1px solid var(--vidro-borda); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.segmentado button svg { display: none; }
+.segmentado button .curto { display: none; }
 .segmentado button { border: 0; background: transparent; padding: .42rem 1rem; border-radius: 999px; font-size: .9rem; color: var(--tinta-2); transition: background .25s, color .25s; white-space: nowrap; }
 .segmentado button[aria-selected="true"] { color: var(--tinta); background: rgba(255,255,255,.16); box-shadow: inset 0 1px 0 var(--vidro-brilho), 0 2px 8px rgba(0,0,0,.2); }
 .topo-dir { justify-self: end; display: flex; align-items: center; gap: .5rem; }
@@ -117,9 +119,9 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
 
 /* ---------- cartões de gráfico */
 .grade { flex: 1; min-height: 0; display: grid; gap: var(--vao); grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.grade-repo { grid-template-areas: "pesos agio desvio" "nuvem nuvem ab"; }
+.grade-repo { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-areas: "pesos pesos pesos pesos agio agio agio agio alfa alfa alfa alfa" "nuvem nuvem nuvem nuvem nuvem nuvem razao razao razao beta beta beta"; }
 .grade-cambio { grid-template-areas: "hist hist termo" "dia ifr tec"; grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr); }
-.grade-lucro { grid-template-areas: "serie serie conta" "equil sens conta"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); }
+.grade-lucro { grid-template-areas: "serie serie conta" "oper sens conta"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); }
 .cartao { border-radius: var(--raio); display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: .75rem .9rem .6rem; overflow: hidden; }
 .tela.ativa .cartao { animation: sobe .8s cubic-bezier(.2,.7,.2,1) both; animation-delay: .18s; }
 .tela.ativa .cartao:nth-child(2) { animation-delay: .24s; } .tela.ativa .cartao:nth-child(3) { animation-delay: .3s; } .tela.ativa .cartao:nth-child(4) { animation-delay: .36s; }
@@ -244,3 +246,40 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
 }
 @media (prefers-reduced-motion: reduce) { .bolha, .foto { animation: none; } .tela, .tela.ativa { transition: none; } .tela.ativa .kpi, .tela.ativa .cartao { animation: none; } }
 @media (max-width: 1100px) { #relogio { display: none; } .marca-nome { font-size: 1.35rem; } }
+
+/* ---------- celular: topo compacto, cotações rolando, abas embaixo (polegar), indicadores em duas colunas */
+@media (max-width: 700px) {
+  html { font-size: 13.5px; }
+  .app { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); }
+  /* o desfoque fica num pseudo-elemento: no próprio topo ele prenderia a barra de abas (position: fixed) dentro do cabeçalho */
+  .topo { position: sticky; top: 0; z-index: 30; grid-template-columns: 1fr auto; padding: calc(.5rem + env(safe-area-inset-top, 0px)) .9rem .45rem; isolation: isolate; }
+  .topo::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(rgba(6,19,12,.86), rgba(6,19,12,.62));
+    -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+  .marca img { height: 1.2rem; } .marca-nome { font-size: 1.15rem; }
+  .cotacoes { grid-row: 2; gap: .3rem; margin: 0 -.9rem; padding: 0 .9rem; mask-image: linear-gradient(90deg, transparent 0, #000 .9rem, #000 calc(100% - .9rem), transparent 100%); }
+  .tk { padding: .28rem .6rem; font-size: .8rem; }
+  .segmentado { position: fixed; z-index: 40; left: .6rem; right: .6rem; bottom: calc(.5rem + env(safe-area-inset-bottom, 0px)); grid-row: auto; display: flex; padding: .3rem;
+    border-radius: 1.4rem; background: rgba(8,26,17,.82); box-shadow: 0 10px 30px rgba(0,0,0,.45); overflow: visible; }
+  .segmentado button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .18rem; padding: .45rem .2rem .4rem; border-radius: 1.1rem; font-size: .72rem; }
+  .segmentado button svg { display: block; width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .segmentado button .longo { display: none; } .segmentado button .curto { display: inline; }
+  .segmentado button[aria-selected="true"] { color: #fff; background: rgba(255,255,255,.14); }
+  .palco { padding: 0 .1rem; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .kpi { padding: .5rem .7rem .55rem; }
+  .kpi .v { font-size: 1.45rem; } .kpi .v.texto { font-size: 1.15rem; }
+  .kpi .nt { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .grade, .grade-repo, .grade-lucro, .grade-cambio { gap: .6rem; }
+  .cartao { min-height: 0; padding: .7rem .75rem .5rem; }
+  .cartao h2 { font-size: 1.02rem; }
+  .corpo { min-height: 19rem; }
+  .corpo:has(#g-repo-nuvem) { min-height: 36rem; }
+  .corpo.rolavel { min-height: 0; max-height: none; }
+  .doca { padding-bottom: .6rem; }
+  .cards { gap: .3rem; } .card { font-size: .72rem; }
+  .rodape-dir { width: 100%; justify-content: space-between; }
+  .balao-info { width: calc(100vw - 16px); }
+  .tela.ativa { animation: entra-lado .35s ease-out; }
+}
+@keyframes entra-lado { from { opacity: 0; transform: translateX(var(--de, 0)); } to { opacity: 1; transform: none; } }
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) { .tela.ativa { animation: none; } }

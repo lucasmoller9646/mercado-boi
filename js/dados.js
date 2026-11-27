@@ -63,7 +63,7 @@
         const d = C.data(l[0]);
         if (!d || !(l[1] > 0)) continue;
         linhas.push({ d, m180: l[1], m230: l[2], m300: l[3], m360: l[4], f180: l[5], f230: l[6], f300: l[7], f360: l[8], lotes: l[9] || 0,
-          origem: l[12], beta: l[13], aM: l[14], aF: l[15], cM: l[16], cF: l[17], r2: l[22], sit: l[24] });
+          origem: l[12], beta: l[13], aM: l[14], aF: l[15], cM: l[16], cF: l[17], fT: l[18], fI: l[19], r2: l[22], sit: l[24] });
       }
       linhas.sort((a, b) => (a.d < b.d ? -1 : 1));
       marca("reposicao", "ok", linhas.length ? "semana de " + linhas[linhas.length - 1].d : "vazia");
@@ -74,13 +74,13 @@
   async function lotes() {
     try {
       const g = await gviz(CFG.planilhas.reposicao.id, CFG.planilhas.reposicao.base, { cabecalhos: 1,
-        consulta: "select B,D,J,K,N,O,R,S,Y,G,H,I,AA,AB,AC,AD,AF where L='SIM' and Z='SIM' and O is not null and S is not null" });
+        consulta: "select B,D,J,K,N,O,R,S,Y,G,H,I,AA,AB,AC,AD,AF,C where L='SIM' and Z='SIM' and O is not null and S is not null" });
       const out = [], tx = (v) => (v == null ? "" : String(v).trim());
       for (const l of g.linhas) {
         const d = C.data(l[1]), peso = C.num(l[5]), pkg = C.num(l[7]);
         if (!d || !(peso > 0) || !(pkg > 0)) continue;
         out.push({ fonte: l[0], d, cat: l[2], sexo: l[3], cab: C.num(l[4]) || 0, peso, pcab: C.num(l[6]) || pkg * peso, pkg, cot: C.num(l[8]),
-          feria: tx(l[9]), lote: tx(l[10]), catOrig: tx(l[11]), depto: tx(l[12]), vendedor: tx(l[13]), carimbo: tx(l[14]), obs: tx(l[15]), url: tx(l[16]) });
+          feria: tx(l[9]), lote: tx(l[10]), catOrig: tx(l[11]), depto: tx(l[12]), vendedor: tx(l[13]), carimbo: tx(l[14]), obs: tx(l[15]), url: tx(l[16]), tipo: tx(l[17]) });
       }
       out.sort((a, b) => (a.d < b.d ? -1 : 1));
       return out;
@@ -228,7 +228,8 @@
           out.vendas.push({ d, cab, lote: l[t.c("LOTE")] || "", cat: String(l[t.c("CATEGORIA")] || "").toUpperCase(), dono, rural: /RURAL\s*BIOENERG/.test(dono),
             preco: n(l, "Preço Venda U$/@"), gmd: n(l, "GMD"), dias: n(l, "Dias de cocho"), pesoIni: n(l, "PESO"), pesoFim: n(l, "PESO SAÍDA"), carc: n(l, "PESO CARCAZA"),
             rcIni: rcI, rcFin: rcF, cms, custoNutr: cms > 0 && diaAlim > 0 ? diaAlim / cms : null, gastosOp: diaria > 0 && diaAlim > 0 ? diaria - diaAlim : null,
-            custoKg: n(l, "Custo/Kg Prod."), lucro: n(l, "Lucro/cab Conf."), frig: l[t.c("Frigorifico")] || "" });
+            custoKg: n(l, "Custo/Kg Prod."), lucro: n(l, "Lucro/cab Conf."), frig: l[t.c("Frigorifico")] || "",
+            diaria: diaria > 0 ? diaria : null, entrada: n(l, "U$/Cab. Entrada"), custoConf: n(l, "Custo Conf."), receita: n(l, "Receita total") });
         }
         out.vendas.sort((a, b) => (a.d < b.d ? -1 : 1));
       } else avisos.push("resultados");

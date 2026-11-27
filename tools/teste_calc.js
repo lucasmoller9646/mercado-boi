@@ -63,5 +63,32 @@ const serieT = Array.from({ length: 80 }, (_, i) => 100 * Math.exp(0.001 * i + 0
 const pj = C.projetar(serieT, 42); eq("projeção pontos", pj.pontos.length, 42);
 eq("projeção ordem das faixas", pj.pontos.every((x) => x.i80 < x.i50 && x.i50 < x.med && x.med < x.s50 && x.s50 < x.s80), true);
 ok("projeção leque cresce com a raiz do tempo", Math.log(pj.pontos[39].s80 / pj.pontos[39].med) / Math.log(pj.pontos[9].s80 / pj.pontos[9].med), 2, 1e-9);
+
+// ---- conta manual da apresentação "Rentabilidade Histórica" (out/2025): recria 316,458; confinamento 166,509
+{
+  const perto = (nome, got, exp, tolAbs) => { const p = Math.abs(got - exp) <= tolAbs; if (!p) falhas++; console.log((p ? "ok   " : "FALHA") + " " + nome + ": " + got.toFixed(3) + " (pptx " + exp + ")"); };
+  const fx = 359.795 * 18765.432 / (1405.537 - 287.657 - 166.509);
+  const r = C.lucroYpoti(C.mesclar(C.PADRAO_YPOTI, { desmamante: 21089.903, toreton: 18765.432, cambio: fx, venda: 4.867, pesoEntrada: 359.795, pesoSaida: 509.953, rc: 0.566, dias: 111.632, diaria: 2.577 }));
+  perto("pptx out/25 receita", r.conf.receita, 1405.537, 1.5);
+  perto("pptx out/25 engorda", r.conf.engorda, 287.657, 0.2);
+  perto("pptx out/25 lucro conf", r.conf.lucro, 166.509, 1.5);
+  perto("pptx out/25 lucro recria", r.recria.lucro, 316.458, 0.5);
+  if (!(r.global.tir > 0.1 && r.global.tir < 1)) throw new Error("TIR do ciclo fora do esperado: " + r.global.tir);
+  const b = C.mqoMulti([[1, 1], [1, 2], [1, 3], [1, 4]], [3, 5, 7, 9]);
+  perto("mqoMulti a", b[0], 1, 1e-9); perto("mqoMulti b", b[1], 2, 1e-9);
+}
+// ---- régua de 2º grau: lotes sintéticos com forma conhecida
+{
+  const perto = (nome, got, exp, tolAbs) => { const p = Math.abs(got - exp) <= tolAbs; if (!p) falhas++; console.log((p ? "ok   " : "FALHA") + " " + nome + ": " + (+got).toFixed(5) + " (esperado " + exp + ")"); };
+  const ind = [], lotes = []; let d = "2025-01-06";
+  for (let s = 0; s < 40; s++) { const beta = 10000 + s * 50; ind.push({ d, beta, fT: -0.05, fI: -0.03 });
+    for (let i = 0; i < 6; i++) { const w = 140 + ((s * 6 + i) * 37) % 260, fonte = ["Everdem", "Tropeando", "Invernada"][i % 3];
+      const f = fonte === "Tropeando" ? -0.05 : fonte === "Invernada" ? -0.03 : 0, fb = 0.25 * -0.05 + 0.25 * -0.03;
+      lotes.push({ d: C.somaDias(d, 2), sexo: "Macho", peso: w, fonte, pkg: beta * (1.1 + 90 / w - 0.0004 * w) * Math.exp(f - fb) }); }
+    d = C.somaDias(d, 7); }
+  const g = C.reguaQuad(lotes, ind, { curta: 26, longa: 52, minCurta: 60, minimo: 30 }).get(ind[39].d);
+  perto("régua 2º grau k", g.k, 1.1, 1e-6); perto("régua 2º grau c", g.c, 90, 1e-4); perto("régua 2º grau q", g.q, -0.0004, 1e-9);
+  const pt = C.pontoQuad(10000, g, 180); perto("β marginal em 180 kg", pt.b, 10000 * (1.1 - 2 * 0.0004 * 180), 1e-3);
+}
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);

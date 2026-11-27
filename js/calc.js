@@ -305,6 +305,80 @@
     return { pontos: out, volDia: sd, tendDia: mt };
   }
 
+  // ---------------------------------------------------------------- lucratividade Ypoti (método da conta manual, "Rentabilidade Histórica")
+  /** Padrões da conta manual: recria (com a RIP dentro) a custo fixo por cabeça, sem juros, quebra nem mortalidade. */
+  const PADRAO_YPOTI = { pesoIni: 180, custoRecria: 100, diasRecria: 365, desmamante: 24000, toreton: 19000, cambio: 6460, venda: 5.8,
+    pesoEntrada: 360, pesoSaida: 523, rc: 0.566, dias: 118, diaria: 2.7 };
+
+  /** Conta da apresentação "Rentabilidade Histórica" (US$/cab):
+      recria = peso de entrada no confinamento × toretón − 180 kg × desmamante (÷ câmbio) − custo fixo da recria;
+      confinamento = peso de saída × RC × preço de venda − dias × diária − peso de entrada × toretón ÷ câmbio. */
+  function lucroYpoti(p) {
+    const fx = p.cambio, R = {}, K = {}, G = {};
+    R.pesoIni = p.pesoIni; R.pesoFim = p.pesoEntrada; R.dias = p.diasRecria;
+    R.compra = (p.pesoIni * p.desmamante) / fx; R.custo = p.custoRecria; R.receita = (p.pesoEntrada * p.toreton) / fx;
+    R.lucro = R.receita - R.compra - R.custo; R.investido = R.compra + R.custo;
+    R.tir = R.investido > 0 && R.receita > 0 && R.dias > 0 ? Math.pow(R.receita / R.investido, 365 / R.dias) - 1 : null;
+    K.pesoIni = p.pesoEntrada; K.pesoFim = p.pesoSaida; K.dias = p.dias; K.kgCarc = p.pesoSaida * p.rc;
+    K.compra = R.receita; K.engorda = p.dias * p.diaria; K.receita = K.kgCarc * p.venda;
+    K.lucro = K.receita - K.compra - K.engorda; K.investido = K.compra + K.engorda;
+    K.tir = K.investido > 0 && K.receita > 0 && K.dias > 0 ? Math.pow(K.receita / K.investido, 365 / K.dias) - 1 : null;
+    K.equilibrio = K.kgCarc > 0 ? K.investido / K.kgCarc : null;
+    K.custoKgGanho = p.pesoSaida > p.pesoEntrada ? K.engorda / (p.pesoSaida - p.pesoEntrada) : null;
+    G.lucro = R.lucro + K.lucro; G.ciclo = R.dias + K.dias; G.investido = R.investido + K.engorda;
+    G.fluxos = [{ evento: "Compra do desmamante e custo da recria", dia: 0, valor: -R.investido },
+      { evento: "Custo de engorda no confinamento", dia: R.dias, valor: -K.engorda },
+      { evento: "Venda do gordo", dia: G.ciclo, valor: K.receita }];
+    G.tir = xtir(G.fluxos); G.equilibrio = K.kgCarc > 0 ? G.investido / K.kgCarc : null;
+    return { recria: R, conf: K, global: G, entrada: p };
+  }
+
+  /** Mínimos quadrados com várias variáveis (e pesos opcionais): X = [[x1, x2, ...]], y = [...]. Devolve os coeficientes ou null. */
+  function mqoMulti(X, y, w) {
+    const k = X.length ? X[0].length : 0; if (!k || X.length <= k) return null;
+    const A = Array.from({ length: k }, () => new Array(k + 1).fill(0));
+    for (let i = 0; i < X.length; i++) { const wi = w ? w[i] : 1; if (!(wi > 0) || !isFinite(y[i])) continue;
+      for (let a = 0; a < k; a++) { for (let b = 0; b < k; b++) A[a][b] += wi * X[i][a] * X[i][b]; A[a][k] += wi * X[i][a] * y[i]; } }
+    for (let c = 0; c < k; c++) { let m = c; for (let r = c + 1; r < k; r++) if (Math.abs(A[r][c]) > Math.abs(A[m][c])) m = r;
+      if (Math.abs(A[m][c]) < 1e-12) return null; [A[c], A[m]] = [A[m], A[c]];
+      for (let r = 0; r < k; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let j = c; j <= k; j++) A[r][j] -= f * A[c][j]; } }
+    return A.map((lin, i) => lin[k] / lin[i]);
+  }
+
+  // ---------------------------------------------------------------- reposição: régua de 2º grau
+  /** Régua alternativa à α + β·peso: valor por cabeça ÷ β da semana = k·peso + c + q·peso² (machos).
+      Mantém o nível semanal (β) e a correção de fonte da régua da planilha e troca só a forma. Cada semana usa só lotes de semanas
+      anteriores: 104 (ou 156 se houver menos de 250 lotes). Janelas menores deixam a curvatura instável (com uns 60 lotes de machos,
+      o kg a mais chegava a valer negativo em 360 kg). Se a curva estimada der valor do kg a mais abaixo de 20% de β entre 150 e 420 kg,
+      vale a curva anterior. Devolve Map semana → {k, c, q, n, janela}. */
+  function reguaQuad(lotes, ind, opc) {
+    opc = opc || {}; const curta = opc.curta || 104, longa = opc.longa || 156, minCurta = opc.minCurta || 250, minimo = opc.minimo || 120, minDp = opc.minDp || 20;
+    const porSemana = new Map(ind.map((r) => [r.d, r]));
+    const obs = [];
+    for (const l of lotes) {
+      if (l.sexo !== "Macho" || !(l.peso >= 60 && l.peso <= 450) || !(l.pkg >= 4000 && l.pkg <= 45000) || /resumo/i.test(l.tipo || "")) continue;
+      const s = segundaDe(l.d), r = porSemana.get(s); if (!r || !(r.beta > 0)) continue;
+      const fT = isFinite(r.fT) ? r.fT : 0, fI = isFinite(r.fI) ? r.fI : 0, fb = 0.25 * fT + 0.25 * fI;
+      const fs = /tropeando/i.test(l.fonte) ? fT : /invernada/i.test(l.fonte) ? fI : 0;
+      obs.push({ s, w: l.peso, y: l.pkg / (r.beta * Math.exp(fs - fb)) });
+    }
+    obs.sort((a, b) => (a.s < b.s ? -1 : 1));
+    const out = new Map(); let ant = null;
+    for (const r of ind) {
+      if (opc.desde && r.d < opc.desde) continue;
+      let jan = curta, ini = somaDias(r.d, -7 * curta), sel = obs.filter((o) => o.s >= ini && o.s < r.d);
+      if (sel.length < minCurta) { jan = longa; ini = somaDias(r.d, -7 * longa); sel = obs.filter((o) => o.s >= ini && o.s < r.d); }
+      const mw = media(sel.map((o) => o.w)), dp = sel.length > 1 ? Math.sqrt(sel.reduce((t, o) => t + (o.w - mw) ** 2, 0) / (sel.length - 1)) : 0;
+      let b = sel.length >= minimo && dp >= minDp ? mqoMulti(sel.map((o) => [1, 1 / o.w, o.w]), sel.map((o) => o.y)) : null;
+      const sao = b && b.every(isFinite) && b[0] + 2 * b[2] * 150 > 0.2 && b[0] + 2 * b[2] * 420 > 0.2;
+      if (sao) { ant = { k: b[0], c: b[1], q: b[2], n: sel.length, janela: jan }; }
+      if (ant) out.set(r.d, ant);
+    }
+    return out;
+  }
+  /** Com a régua de 2º grau: preço por kg, valor marginal do kg (derivada do valor por cabeça) e a razão entre os dois, num peso. */
+  function pontoQuad(beta, g, w) { const p = beta * (g.k + g.c / w + g.q * w), b = beta * (g.k + 2 * g.q * w); return { p, b, razao: p > 0 ? b / p : null }; }
+
   /** Cópia funda simples dos parâmetros com substituições (obj de mesmo formato, só o que muda). */
   function mesclar(base, extra) {
     const o = JSON.parse(JSON.stringify(base));
@@ -318,5 +392,5 @@
   }
 
   return { data, num, media, mediaPond, quantil, mesDe, anoDe, somaDias, difDias, segundaDe, mesesEntre, ultimoAte, porMes, preencher,
-    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar };
+    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar, PADRAO_YPOTI, lucroYpoti, mqoMulti, reguaQuad, pontoQuad };
 });

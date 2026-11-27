@@ -40,25 +40,10 @@
       { k: "ivaCompras", r: "IVA embutido no nosso preço (ex.: 0,05)", passo: 0.01, min: 0, max: 0.2 }, { k: "comissaoLeilao", r: "Comissão do comprador no leilão (ex.: 0,03)", passo: 0.005, min: 0, max: 0.2 },
       { k: "limiarPivo", r: "Reversão que confirma pico ou vale do câmbio", passo: 0.005, min: 0.005 },
     ] },
-    { grupo: "Lucratividade — o que varia", itens: [
-      { k: "indicadores", r: "Indicadores do confinamento", largo: true, op: [["realizado", "Realizado (Resultados do Confinamento)"], ["fixo", "Fixos da planilha"]] },
-      { p: "fatorToretonGordo", r: "Toretón gordo ÷ toretón 360 kg", passo: 0.005 }, { p: "juros", r: "Juros (ao ano)", passo: 0.005 },
-      { p: "prazoRecebimento", r: "Prazo de recebimento (dias)", passo: 5 },
-      { k: "ripIndexada", r: "Diária da RIP nos meses passados", largo: true, op: [["nao", "Fixa, a de hoje"], ["sim", "Acompanha o custo nutricional de cada mês"]] },
-    ] },
-    { grupo: "Recria a pasto", itens: [
-      { p: "recria.pesoIni", r: "Peso inicial (kg)", passo: 5 }, { p: "recria.gmd", r: "GMD (kg/dia)", passo: 0.01 }, { p: "recria.dias", r: "Dias no pasto", passo: 5 },
-      { p: "recria.quebra", r: "Quebra do toretón", passo: 0.005 }, { p: "recria.custoMes", r: "Custo de produção (US$/cab-mês)", passo: 0.5 },
-      { p: "recria.outros", r: "Outros custos (US$/cab)", passo: 1 }, { p: "recria.mortAnual", r: "Mortalidade anual", passo: 0.001 },
-    ] },
-    { grupo: "RIP (pré-confinamento)", itens: [
-      { p: "rip.gmd", r: "GMD (kg/dia)", passo: 0.05 }, { p: "rip.dias", r: "Dias no pasto", passo: 5 }, { p: "rip.quebra", r: "Quebra", passo: 0.005 },
-      { p: "rip.diaria", r: "Custo da diária (US$/cab-dia)", passo: 0.01 }, { p: "rip.outros", r: "Outros custos (US$/cab)", passo: 1 }, { p: "rip.mort", r: "Mortalidade", passo: 0.001 },
-    ] },
-    { grupo: "Confinamento", dica: "GMD, rendimento final, consumo, custo nutricional e gastos operacionais só valem daqui quando os indicadores estão em “Fixos da planilha”.", itens: [
-      { p: "conf.gmd", r: "GMD (kg/dia)", passo: 0.01 }, { p: "conf.dias", r: "Dias de cocho", passo: 5 }, { p: "conf.rcIni", r: "RC inicial", passo: 0.005 }, { p: "conf.rcFin", r: "RC final", passo: 0.001 },
-      { p: "conf.quebra", r: "Quebra", passo: 0.005 }, { p: "conf.custoNutr", r: "Custo nutricional (US$/kg MS)", passo: 0.01 }, { p: "conf.consumo", r: "Consumo (kg MS/dia)", passo: 0.1 },
-      { p: "conf.gastosOp", r: "Gastos operacionais (US$/cab-dia)", passo: 0.01 }, { p: "conf.outros", r: "Outros custos (US$/cab)", passo: 1 }, { p: "conf.mort", r: "Mortalidade", passo: 0.001 },
+    { grupo: "Lucratividade", dica: "Mesmo método da apresentação Rentabilidade Histórica: a recria (com a RIP) a custo fixo por cabeça; o confinamento com pesos, dias, diária, rendimento e preço reais de cada mês; a passagem de uma etapa para a outra ao preço do toretón.", itens: [
+      { k: "precoReposicao", r: "Preço do desmamante e do toretón", largo: true, op: [["ypoti", "O que a Ypoti pagou (planilha de compras)"], ["leilao", "Indicador dos leilões (180 e 360 kg)"]] },
+      { k: "custoRecria", r: "Custo da recria com a RIP (US$/cab)", passo: 5, min: 0 },
+      { k: "diasRecria", r: "Duração da recria, para a TIR (dias)", passo: 15, min: 30 },
     ] },
   ];
   const pegaCaminho = (o, cam) => cam.split(".").reduce((x, k) => (x == null ? x : x[k]), o);
@@ -228,6 +213,20 @@
     } finally { olhandoCambio = false; }
   }
   setInterval(vigiarCambio, 60000);
+
+  // ------------------------------------------------------------------ celular: deslizar o dedo para o lado troca de tela
+  (function () {
+    let x0 = null, y0 = 0, t0 = 0;
+    const palco = document.querySelector(".palco");
+    palco.addEventListener("touchstart", (e) => { if (e.touches.length !== 1) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+    palco.addEventListener("touchend", (e) => {
+      if (x0 == null || !matchMedia("(max-width: 700px)").matches) return;
+      const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+      if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6 || Date.now() - t0 > 700) return;
+      document.documentElement.style.setProperty("--de", (dx < 0 ? 40 : -40) + "px");
+      ativar(atual + (dx < 0 ? 1 : -1)); window.scrollTo({ top: 0, behavior: "smooth" });
+    }, { passive: true });
+  })();
 
   // ------------------------------------------------------------------ B3 ao vivo: com o pregão aberto, renova as cotações do topo a cada poucos minutos
   let olhandoB3 = false;
