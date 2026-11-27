@@ -10,6 +10,8 @@ guías e links **não** são enviados.
 
 1. Abra <https://script.google.com> com a conta que enxerga as três planilhas e clique em **Novo projeto**.
 2. Apague o conteúdo de `Código.gs`, cole o arquivo [`Codigo.gs`](Codigo.gs) deste repositório e salve. Dê ao projeto o nome *Mercado do Boi — ponte*.
+   Em **Configurações do projeto**, marque *Mostrar o arquivo de manifesto "appsscript.json" no editor* e substitua o conteúdo dele
+   por [`appsscript.json`](appsscript.json): é ele que limita a autorização a **somente leitura** das planilhas.
 3. No seletor de funções escolha **instalar** e clique em **Executar**. Autorize o acesso (ler planilhas). No
    *Registro de execução* aparece a **chave de acesso** e, para cada planilha, quantas linhas foram lidas.
 4. **Implantar › Nova implantação › App da Web**. *Executar como:* **Eu**. *Quem pode acessar:* **Qualquer pessoa**. Copie a URL que termina em `/exec`.

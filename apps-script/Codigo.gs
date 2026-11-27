@@ -7,7 +7,8 @@
  * implanta este script. Nomes de fornecedores, facturas, guías e links não são enviados.
  *
  * Instalação (uma vez): ver apps-script/LEIAME.md no repositório.
- *   1. Colar este arquivo em um projeto novo em script.google.com
+ *   1. Colar este arquivo em um projeto novo em script.google.com e o appsscript.json no manifesto
+ *      (o manifesto limita a autorização a SOMENTE LEITURA das planilhas)
  *   2. Executar a função "instalar" (gera a chave de acesso e mostra no registro)
  *   3. Implantar > Nova implantação > App da Web > Executar como: eu · Acesso: qualquer pessoa
  *
@@ -16,7 +17,7 @@
  *           <URL do app>?k=<chave>&fresco=1   → ignora o cache
  */
 
-var VERSAO = '2026-11-26a';
+var VERSAO = '2026-11-26b';
 var CACHE_MINUTOS = 15;
 
 var FONTES = {
@@ -106,7 +107,8 @@ function norm_(s) {
 
 function ler_(nome) {
   var f = FONTES[nome];
-  var aba = SpreadsheetApp.openById(f.id).getSheetByName(f.aba);
+  var planilha = SpreadsheetApp.openById(f.id);
+  var aba = planilha.getSheetByName(f.aba);
   if (!aba) throw new Error('aba "' + f.aba + '" não encontrada');
   var valores = aba.getDataRange().getValues();
   var cab = valores[0].map(norm_);
@@ -119,7 +121,7 @@ function ler_(nome) {
   });
   var iFiltro = f.filtro ? cab.indexOf(norm_(f.filtro.coluna)) : -1;
   var iObrig = f.obrigatoria ? cab.indexOf(norm_(f.obrigatoria)) : -1;
-  var tz = Session.getScriptTimeZone();
+  var tz = planilha.getSpreadsheetTimeZone(); // datas saem no fuso da própria planilha (evita virar o dia)
   var linhas = [];
   for (var r = 1; r < valores.length; r++) {
     var lin = valores[r];
