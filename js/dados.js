@@ -221,18 +221,26 @@
         }
         out.milho.sort((a, b) => (a.d < b.d ? -1 : 1));
       } else avisos.push("milho");
-      t = tabela(j.fontes.milho_contratos);
-      if (t) {
-        const n = (l, nome) => C.num(l[t.c(nome)], "es");
+      // contratos: a aba geral (2024) e as abas por safra ("Contracto Maiz Seco 2025 - 2026" em diante)
+      const vistos = new Set();
+      for (const nome of ["milho_contratos", "milho_contratos_safra"]) {
+        t = tabela(j.fontes[nome]); if (!t) continue;
+        const n = (l, c) => (t.c(c) == null ? null : C.num(l[t.c(c)], "es"));
         for (const l of t.linhas) {
-          const d = C.data(l[t.c("FECHA")]), prod = String(l[t.c("PRODUCTO")] || "").toUpperCase();
+          const d = C.data(l[t.c("FECHA")]), prod = String(l[t.c("PRODUCTO")] || "MAIZ SECO").toUpperCase();
           let usd = n(l, "PRECIO USD/TON"); const gs = n(l, "PRECIO Gs/TON"), cb = n(l, "CAMBIO          Gs/$");
           if (!(usd > 0) && gs > 0 && cb > 1000) usd = gs / cb;
-          if (!d || !(usd > 20) || !(usd < 1000) || /HUMED|SILA|ENSIL/.test(prod)) continue;
-          out.contratosMilho.push({ d, usd, t: n(l, "CANTIDAD") || 0, prod, frete: l[t.c("FLETE A CARGO DE")] || "" });
+          const ton = n(l, "CANTIDAD") || 0, id = d + "|" + usd + "|" + ton;
+          if (!d || !(usd > 20) || !(usd < 1000) || /HUMED|SILA|ENSIL/.test(prod) || vistos.has(id)) continue;
+          vistos.add(id);
+          out.contratosMilho.push({ d, usd, t: ton, prod, frete: l[t.c("FLETE A CARGO DE")] || "" });
         }
-        out.contratosMilho.sort((a, b) => (a.d < b.d ? -1 : 1));
       }
+      out.contratosMilho.sort((a, b) => (a.d < b.d ? -1 : 1));
+      // a planilha de entregas só traz preço até jan/2025; daí em diante o "nosso milho" são os contratos fechados (pela data do contrato)
+      const ultEntrega = out.milho.length ? out.milho[out.milho.length - 1].d : "0000";
+      for (const c of out.contratosMilho) if (c.d > ultEntrega && c.t > 0) out.milho.push({ d: c.d, usd: c.usd, t: c.t, posto: null, prod: c.prod, contrato: true });
+      out.milho.sort((a, b) => (a.d < b.d ? -1 : 1));
       out.cambioBcp = lerCambio(j.fontes.cambio_bcp);
       const uc = out.cambioBcp[out.cambioBcp.length - 1];
       marca("bcp", uc ? "ok" : "erro", uc ? "corte de " + uc.h + " · " + uc.d.slice(8) + "/" + uc.d.slice(5, 7) : "planilha do câmbio não respondeu");

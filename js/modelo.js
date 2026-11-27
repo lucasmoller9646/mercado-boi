@@ -133,8 +133,8 @@
     const milhoMes = C.porMes(D.yp.milho.map((x) => ({ d: x.d, v: x.usd, w: x.t })));
     const corte60 = C.somaDias(M.hoje, -60);
     const mRec = D.yp.milho.filter((x) => x.d >= corte60);
-    let milhoHoje = mRec.length ? C.mediaPond(mRec.map((x) => x.usd), mRec.map((x) => x.t)) : null, milhoRef = mRec.length ? "entregas de 60 dias" : null;
-    if (milhoHoje == null && milhoMes.size) { const k = [...milhoMes.keys()].sort().pop(); milhoHoje = milhoMes.get(k); milhoRef = "entregas de " + k; }
+    let milhoHoje = mRec.length ? C.mediaPond(mRec.map((x) => x.usd), mRec.map((x) => x.t)) : null, milhoRef = mRec.length ? "compras de 60 dias" : null;
+    if (milhoHoje == null && milhoMes.size) { const k = [...milhoMes.keys()].sort().pop(); milhoHoje = milhoMes.get(k); milhoRef = "compras de " + window.Telas.F.mesAno(k + "-01"); }
     const frenteMilho = curvaMilho[0] || null;
     M.milho = { d: am.d, py: am.py, b3: am.b3, saz: sazMilho, basisAno: basisMilhoAno, curva: curvaMilho, frente: frenteMilho, milhoMes, milhoHoje, milhoRef,
       tMes: mRec.reduce((s, x) => s + x.t, 0), contratos: D.yp.contratosMilho, basisNosso: milhoHoje != null && frenteMilho && frenteMilho.usd ? milhoHoje - frenteMilho.usd : null,

@@ -17,7 +17,7 @@
  *           <URL do app>?k=<chave>&fresco=1   → ignora o cache
  */
 
-var VERSAO = '2026-11-26c';
+var VERSAO = '2026-11-26d';
 var CACHE_MINUTOS = 15;
 
 var FONTES = {
@@ -50,6 +50,12 @@ var FONTES = {
     id: '12Wm3awcR9lmzxyMYt5ySoZe6OcD99Uh23CIhtH_JLDY', aba: 'Intradia', cacheMinutos: 1,
     colunas: ['data', 'hora_corte', 'compra_corte', 'venda_corte', 'compra_acumulado', 'venda_acumulado', 'corte_sem_negocios', 'origem', 'capturado_em'],
     obrigatoria: 'data'
+  },
+  // contratos de milho seco por safra: todas as abas "Contracto/Contratos Maiz Seco <ano>" (a da safra nova entra sozinha)
+  milho_contratos_safra: {
+    id: '1UTd1ImU9o5oFeZn_n8oeGHchA4YEzciP-bwMRjTF3J0', abas: '^CONTRA[A-Z]*\\s+MAIZ\\s+SECO',
+    colunas: ['AÑO', 'FECHA', 'PRODUCTO', 'CANTIDAD', 'PRECIO USD/TON', 'ESTADO DEL CONTRATO', 'FLETE A CARGO DE'],
+    obrigatoria: 'FECHA'
   },
   milho_contratos: {
     id: '1UTd1ImU9o5oFeZn_n8oeGHchA4YEzciP-bwMRjTF3J0', aba: 'Contratos Materia Prima',
@@ -111,19 +117,34 @@ function norm_(s) {
 }
 
 function ler_(nome) {
-  var f = FONTES[nome];
+  var f = FONTES[nome], abas = [f.aba];
+  if (f.abas) {
+    var re = new RegExp(f.abas);
+    abas = Sheets.Spreadsheets.get(f.id, { fields: 'sheets.properties.title' }).sheets
+      .map(function (x) { return x.properties.title; }).filter(function (t) { return re.test(norm_(t)); });
+    if (!abas.length) throw new Error('nenhuma aba corresponde a ' + f.abas);
+  }
+  var linhas = [], faltando = [];
+  abas.forEach(function (aba) {
+    var r = lerAba_(f, aba);
+    linhas = linhas.concat(r.linhas);
+    r.faltando.forEach(function (c) { faltando.push(abas.length > 1 ? aba + ': ' + c : c); });
+  });
+  return { cab: f.colunas, linhas: linhas, faltando: faltando, abas: abas, lido: new Date().toISOString() };
+}
+
+function lerAba_(f, aba) {
   // Serviço avançado do Sheets: funciona com o escopo "somente leitura" (SpreadsheetApp.openById exigiria acesso total).
   // Números vêm crus; datas e horas vêm como aparecem na planilha (o painel sabe ler dd/mm/aaaa, 17-Nov.-26, 08:30).
-  var resp = Sheets.Spreadsheets.Values.get(f.id, "'" + f.aba + "'", { valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING' });
+  var resp = Sheets.Spreadsheets.Values.get(f.id, "'" + aba + "'", { valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING' });
   var valores = resp.values || [];
-  if (!valores.length) throw new Error('aba "' + f.aba + '" vazia ou não encontrada');
+  if (!valores.length) throw new Error('aba "' + aba + '" vazia ou não encontrada');
   var cab = valores[0].map(norm_);
-  var idx = [], rotulos = [], faltando = [];
+  var idx = [], faltando = [];
   f.colunas.forEach(function (c) {
-    var i = -1;
-    if (c.indexOf('@antes:') === 0) { i = cab.indexOf(norm_(c.slice(7))) - 1; }
-    else { i = cab.indexOf(norm_(c)); }
-    if (i >= 0) { idx.push(i); rotulos.push(c); } else { faltando.push(c); }
+    var i = c.indexOf('@antes:') === 0 ? cab.indexOf(norm_(c.slice(7))) - 1 : cab.indexOf(norm_(c));
+    idx.push(i);
+    if (i < 0) faltando.push(c);
   });
   var iFiltro = f.filtro ? cab.indexOf(norm_(f.filtro.coluna)) : -1;
   var iObrig = f.obrigatoria ? cab.indexOf(norm_(f.obrigatoria)) : -1;
@@ -134,14 +155,14 @@ function ler_(nome) {
     if (iFiltro >= 0 && norm_(lin[iFiltro]).indexOf(norm_(f.filtro.contem)) < 0) continue;
     var o = [];
     for (var k = 0; k < idx.length; k++) {
-      var v = lin[idx[k]];
+      var v = idx[k] >= 0 ? lin[idx[k]] : null;
       if (typeof v === 'number') v = Math.round(v * 1e6) / 1e6;
       else if (v === '' || v === undefined) v = null;
       o.push(v);
     }
     linhas.push(o);
   }
-  return { cab: rotulos, linhas: linhas, faltando: faltando, lido: new Date().toISOString() };
+  return { linhas: linhas, faltando: faltando };
 }
 
 function lerComCache_(nome, fresco) {

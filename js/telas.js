@@ -174,7 +174,7 @@
       series: [linha("Paraguai interno", pm(m.py), COR.py), linha("CCM B3 à vista", pm(m.b3), COR.br),
         fm && fm.usd ? { name: "CCM hoje", type: "scatter", data: [[M.hoje, +fm.usd.toFixed(1)]], symbolSize: rem() * 0.75, itemStyle: { color: COR.br, borderColor: "#06130C", borderWidth: 2 },
           label: { show: true, position: "left", formatter: (p) => F.n(p.value[1], 0), color: COR.tinta, fontSize: rem() * 0.82, fontWeight: 600 } } : null,
-        nossoM.length ? linha("Ypoti (entregas do mês)", nossoM, COR.ypoti, Object.assign({ showSymbol: true }, rotuloFim(t0, COR.ypoti))) : null].filter(Boolean),
+        nossoM.length ? linha("Ypoti (compras do mês)", nossoM, COR.ypoti, Object.assign({ showSymbol: true }, rotuloFim(t0, COR.ypoti))) : null].filter(Boolean),
     }));
 
     // ---- basis sazonal do milho
