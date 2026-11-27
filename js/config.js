@@ -1,6 +1,6 @@
 /* Mercado do Boi — endereços das fontes e padrões. Nada aqui é segredo (a chave da ponte fica só no navegador). */
 window.MB_CONFIG = {
-  versao: "2026-11-27c",
+  versao: "2026-11-27d",
   planilhas: {
     gordo: { id: "1PSoOOJnJ2IdO6rn8fOx9Q8bTxSao6ioTN1oEbbp_qEs", aba: "Sheet1" },                 // Precios Valor Agro (raspagem diária)
     reposicao: { id: "1_UbGp17HuOGgBG5K1PZ5iEpHH0HApQAf9bCXhYwKB6Y", indicador: "INDICADOR", base: "BASE" }, // Preços de Invernada PY
@@ -9,7 +9,8 @@ window.MB_CONFIG = {
   ponte: "https://script.google.com/macros/s/AKfycbwEXPbndqKzwWjeixsmZdqk0Q07u_r7-qxFsQwuzc6Dbz72rT3lnpwl6K7wjWj2qsX9/exec",
   b3: "https://cotacao.b3.com.br/mds/api/v1/DerivativeQuotation/",
   cambio: "https://economia.awesomeapi.com.br/json/",
-  datagro: "https://precos.api.datagro.com/dados?a=D_PEPR_SP_BR", // Indicador do Boi DATAGRO SP: primitiva pública (último dia)
+  datagro: "https://precos.api.datagro.com/dados?a=D_PEPR_SP_BR",
+  dadosRapidos: "https://raw.githubusercontent.com/lucasmoller9646/mercado-boi/dados/", // cotações dos widgets e notícias (robô a cada 20 min) // Indicador do Boi DATAGRO SP: primitiva pública (último dia)
   padroes: {
     rotacao: 0,            // segundos por tela (0 = parado)
     atualizar: 15,         // minutos entre atualizações

@@ -283,3 +283,26 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
 }
 @keyframes entra-lado { from { opacity: 0; transform: translateX(var(--de, 0)); } to { opacity: 1; transform: none; } }
 @media (max-width: 700px) and (prefers-reduced-motion: reduce) { .tela.ativa { animation: none; } }
+
+/* ---------- notícias que mexem com o câmbio */
+.noticias { flex: none; display: flex; align-items: center; gap: .7rem; border-radius: 999px; padding: .32rem .5rem .32rem .9rem; overflow: hidden; }
+.nt-rot { flex: none; font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--tinta-3); }
+.nt-janela { flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(90deg, transparent 0, #000 2rem, #000 calc(100% - 2rem), transparent 100%); }
+.nt-trilho { display: flex; gap: 2.2rem; width: max-content; animation: rolar-nt var(--dur, 120s) linear infinite; }
+.noticias:hover .nt-trilho { animation-play-state: paused; }
+@keyframes rolar-nt { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.nt { flex: none; display: inline-flex; align-items: baseline; gap: .45rem; color: var(--tinta-2); text-decoration: none; font-size: .8rem; white-space: nowrap; }
+.nt:hover { color: var(--tinta); }
+.nt time { color: var(--tinta-3); font-size: .72rem; }
+.nt .fonte { color: var(--tinta-3); }
+.nt .tag { font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: .08rem .4rem; border-radius: 4px; background: rgba(255,255,255,.1); color: var(--tinta); }
+.nt .tag.t-fed { background: rgba(51,140,237,.3); } .nt .tag.t-bcp { background: rgba(231,102,36,.32); } .nt .tag.t-inflacao { background: rgba(226,77,139,.3); }
+.nt .tag.t-juros { background: rgba(210,142,5,.32); } .nt .tag.t-emprego { background: rgba(152,135,239,.3); }
+@media (prefers-reduced-motion: reduce) { .nt-trilho { animation: none; } .nt-janela { overflow-x: auto; } }
+@media (max-width: 700px) {
+  .noticias { border-radius: var(--raio-p); align-items: stretch; flex-direction: column; gap: .3rem; padding: .55rem .7rem; }
+  .nt-janela { mask-image: none; max-height: 13rem; overflow-y: auto; }
+  .nt-trilho { animation: none; flex-direction: column; gap: .5rem; width: auto; }
+  .nt-trilho > .nt:nth-child(n+19) { display: none; }
+  .nt { white-space: normal; flex-wrap: wrap; }
+}

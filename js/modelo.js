@@ -296,6 +296,7 @@
     const sens = { dv, db, z: db.map((b) => dv.map((v) => C.lucroYpoti(C.mesclar(pHoje, { venda: pHoje.venda + v, desmamante: pHoje.desmamante * (1 + b) })).global.lucro)) };
     M.lucro = { serie: serie.slice(-60), atual, pHoje, PY, fechados, sens, temVenda, usaYpoti, nLotes: l3.reduce((t, v) => t + v.cab, 0),
       vendaRef: +S.vendaManual > 0 ? "informado nas configurações" : vendaHoje != null ? (rec.length ? "média ponderada das vendas dos últimos 45 dias" : vendaRef) : (pyHoje != null ? "Valor Agro (sem venda nossa)" : "padrão") };
+    M.noticias = D.noticias ? D.noticias.itens : [];
     // ================================================================ cotações do topo (verde ou vermelho pelo acumulado do dia)
     const liq = (cs) => { const a = cs.filter((c) => c.ultimo != null); return a.length ? a.reduce((x, y) => ((y.aberto || 0) > (x.aberto || 0) ? y : x)) : (cs[0] || null); };
     const fb = liq(D.b3.bgi.filter((c) => c.venc >= M.hoje)), fm = liq(D.b3.ccm.filter((c) => c.venc >= M.hoje));

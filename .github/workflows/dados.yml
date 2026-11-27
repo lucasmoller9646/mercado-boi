@@ -1,0 +1,27 @@
+# Cotações para os widgets e notícias para a tela de câmbio, a cada 20 minutos.
+# Vai para o ramo "dados" (um único commit, substituído a cada vez), para não encher o histórico nem reconstruir o site.
+name: Dados rápidos (widgets e notícias)
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: dados-rapidos, cancel-in-progress: true }
+jobs:
+  dados:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Buscar cotações e notícias
+        run: python3 tools/robo_dados.py "$RUNNER_TEMP/dados"
+      - name: Publicar no ramo dados
+        run: |
+          cd "$RUNNER_TEMP/dados"
+          git init -q -b dados
+          git config user.name "robo-dados"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cotacoes.json noticias.json
+          git commit -q -m "Dados rápidos $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" dados

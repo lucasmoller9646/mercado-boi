@@ -98,6 +98,16 @@
     return { hoje: prim, pontos: arq };
   }
 
+  // ------------------------------------------------------------ notícias que mexem com o câmbio (robô do repositório, a cada 20 min)
+  async function noticias() {
+    try {
+      const j = await pegar(CFG.dadosRapidos + "noticias.json?t=" + Math.floor(Date.now() / 600000), "json", 15000);
+      const itens = (j.itens || []).filter((x) => x.t && x.quando);
+      marca("noticias", itens.length ? "ok" : "desatualizado", itens.length + " manchetes");
+      return { atualizado: j.atualizado, itens };
+    } catch (e) { marca("noticias", "erro", "sem notícias agora"); return null; }
+  }
+
   // ------------------------------------------------------------ milho em Chicago (arquivo atualizado pelo robô do repositório)
   async function cme() {
     try {
@@ -275,5 +285,5 @@
     } catch (e) { const msg = String(e.message || e); marca("ypoti", "erro", msg); marca("bcp", "erro", /chave/.test(msg) ? msg : "ponte fora do ar"); return vazio; }
   }
 
-  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp, cme, boiBr };
+  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp, cme, boiBr, noticias };
 })();

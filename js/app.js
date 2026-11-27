@@ -106,7 +106,7 @@
   if (atual < 0) atual = 0;
 
   function cards() {
-    const nomes = { gordo: "Valor Agro", datagro: "DATAGRO", reposicao: "Reposição", b3: "B3", cambio: "Câmbio R$", bcp: "Câmbio BCP", ypoti: "Ypoti" };
+    const nomes = { gordo: "Valor Agro", noticias: "Notícias", datagro: "DATAGRO", reposicao: "Reposição", b3: "B3", cambio: "Câmbio R$", bcp: "Câmbio BCP", ypoti: "Ypoti" };
     $("cards").innerHTML = Object.keys(nomes).map((k) => { const e = window.Dados.estado[k] || { estado: "atualizando", nota: "" };
       return '<span class="card" data-estado="' + e.estado + '" title="' + String(e.nota).replace(/"/g, "&quot;") + '"><i class="luz"></i><b>' + nomes[k] + "</b>" + (e.nota ? "<span>" + e.nota + "</span>" : "") + "</span>"; }).join("");
   }
@@ -116,9 +116,9 @@
     try {
       cards();
       const anc = D ? D.anc : await window.Dados.ancoras();
-      const [gordo, ind, lotes, b3, fx, yp, cme, br] = await Promise.all([window.Dados.gordo(), window.Dados.indicador(), window.Dados.lotes(), window.Dados.b3(), window.Dados.cambio(), window.Dados.ypoti(S.ponte, S.chave), window.Dados.cme(), window.Dados.boiBr()]);
+      const [gordo, ind, lotes, b3, fx, yp, cme, br, nts] = await Promise.all([window.Dados.gordo(), window.Dados.indicador(), window.Dados.lotes(), window.Dados.b3(), window.Dados.cambio(), window.Dados.ypoti(S.ponte, S.chave), window.Dados.cme(), window.Dados.boiBr(), window.Dados.noticias()]);
       // se uma fonte falhar numa atualização, fica o que já estava na tela
-      const novo = { anc, gordo, ind, lotes, b3, fx, yp, cme, br };
+      const novo = { anc, gordo, ind, lotes, b3, fx, yp, cme, br, noticias: nts || (D && D.noticias) || null };
       if (D && !br.hoje && D.br) novo.br = D.br;
       if (D && !(cme && cme.contratos.length)) novo.cme = D.cme;
       if (D) { if (!gordo.length) novo.gordo = D.gordo; if (!ind.length) novo.ind = D.ind; if (!lotes.length) novo.lotes = D.lotes; if (!b3.bgi.length) novo.b3 = D.b3; if (!fx.brl) novo.fx = D.fx; if (!yp.ligado && D.yp.ligado) novo.yp = D.yp; }

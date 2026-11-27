@@ -17,7 +17,7 @@
  *           <URL do app>?k=<chave>&fresco=1   → ignora o cache
  */
 
-var VERSAO = '2026-11-26d';
+var VERSAO = '2026-11-27c';
 var CACHE_MINUTOS = 15;
 
 var FONTES = {
@@ -70,7 +70,10 @@ function doGet(e) {
   var saida;
   try {
     var chave = PropertiesService.getScriptProperties().getProperty('CHAVE');
-    if (chave && p.k !== chave) {
+    if (p.publico === 'cambio') {
+      // sem chave: só a última cotação do câmbio do BCP (informação pública), para os widgets do celular e do relógio
+      saida = cambioPublico_();
+    } else if (chave && p.k !== chave) {
       saida = { ok: false, erro: 'chave', mensagem: 'Chave de acesso ausente ou incorreta.' };
     } else if (p.ping) {
       saida = { ok: true, versao: VERSAO, fontes: Object.keys(FONTES) };
@@ -88,6 +91,16 @@ function doGet(e) {
     saida = { ok: false, erro: 'interno', mensagem: String(err2 && err2.message || err2) };
   }
   return ContentService.createTextOutput(JSON.stringify(saida)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Últimos cortes do câmbio do BCP (só data, hora, compra, venda e acumulados do dia), sem nenhuma outra coluna da planilha. */
+function cambioPublico_() {
+  var t = lerComCache_('cambio_bcp', false);
+  var cab = t.cab || [], linhas = t.linhas || [];
+  var cols = ['data', 'hora_corte', 'compra_corte', 'venda_corte', 'compra_acumulado', 'venda_acumulado', 'corte_sem_negocios'];
+  var ix = cols.map(function (c) { return cab.indexOf(c); });
+  var ult = linhas.slice(-40).map(function (l) { return ix.map(function (i) { return i >= 0 ? l[i] : null; }); });
+  return { ok: true, versao: VERSAO, gerado: new Date().toISOString(), cab: cols, linhas: ult };
 }
 
 /** Roda uma vez: cria a chave de acesso e confere se as planilhas abrem com esta conta. */

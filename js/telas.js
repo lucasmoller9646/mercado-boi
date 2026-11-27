@@ -453,6 +453,7 @@
   const notaDe = (v) => (v == null || !isFinite(v) ? null : NOTAS[v >= 1.2 ? 4 : v >= 0.4 ? 3 : v > -0.4 ? 2 : v > -1.2 ? 1 : 0]);
 
   function telaCambio(M) {
+    noticias(M);
     const X = M.cambio, r = rem(), semDados = M.S.chave ? "Aguardando o câmbio do BCP (ponte de dados não respondeu)." : "Falta a chave da ponte neste navegador: abra a engrenagem (⚙), cole a chave de acesso e salve.";
     const ids = ["g-cambio-hist", "g-cambio-termo", "g-cambio-dia", "g-cambio-ifr"];
     if (!X) {
@@ -579,6 +580,19 @@
       '<table class="conta premissas"><thead><tr><th>Picos e vales</th><th>Data</th><th>Gs/US$</th><th>Variação</th><th>Pregões</th></tr></thead><tbody>' + linhasPv + "</tbody></table>" +
       '<p class="nota-conta">' + (X.proj ? "Projeção estatística, não promessa: parte do último fechamento, leva a tendência recente (" + F.pct(X.proj.tendDia, 2, true) + " ao dia, que perde força a cada 10 pregões) e abre o leque pela oscilação diária dos últimos 60 pregões (" + F.pct(X.proj.volDia, 2) + "). " : "") +
       "No estudo deste par, quem funcionou foram a tendência (médias) e o horário da conversão; os osciladores, como o IFR, não deram resultado.</p>";
+  }
+
+  // ================================================================== notícias (faixa na tela de câmbio)
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function haQuanto(iso) { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? "há " + m + " min" : m < 1440 ? "há " + Math.round(m / 60) + " h" : "há " + Math.round(m / 1440) + " d"; }
+  function noticias(M) {
+    const el = document.getElementById("noticias-cambio"); if (!el) return;
+    const itens = (M.noticias || []).slice(0, 18);
+    if (!itens.length) { el.hidden = true; return; }
+    const html = itens.map((n) => '<a class="nt" href="' + esc(n.url) + '" target="_blank" rel="noopener"><b class="tag t-' + esc((n.temas || [])[0] || "").normalize("NFD").replace(/[^a-z]/gi, "").toLowerCase() + '">' + esc((n.temas || []).join(" · ")) + "</b>" +
+      "<time>" + haQuanto(n.quando) + "</time>" + esc(n.t) + (n.fonte ? '<span class="fonte"> · ' + esc(n.fonte) + "</span>" : "") + "</a>").join("");
+    el.hidden = false;
+    el.innerHTML = '<span class="nt-rot">Notícias</span><div class="nt-janela"><div class="nt-trilho" style="--dur:' + Math.max(60, itens.length * 9) + 's">' + html + html + "</div></div>";
   }
 
   // ================================================================== cotações do cabeçalho
