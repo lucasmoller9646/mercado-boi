@@ -226,6 +226,45 @@
     return { recria: R, rip: I, conf: C, global: G, toretonGordo, entrada: p };
   }
 
+  // ---------------------------------------------------------------- análise técnica (câmbio)
+  function mediana(a) { const b = a.filter((x) => x != null && isFinite(x)).sort((x, y) => x - y); return quantil(b, 0.5); }
+  /** Média móvel simples; posições sem janela completa ficam null. */
+  function mms(v, n) {
+    const out = new Array(v.length).fill(null); let s = 0;
+    for (let i = 0; i < v.length; i++) { s += v[i]; if (i >= n) s -= v[i - n]; if (i >= n - 1) out[i] = s / n; }
+    return out;
+  }
+  /** Índice de força relativa de Wilder. */
+  function ifr(v, n) {
+    const out = new Array(v.length).fill(null); if (v.length <= n) return out;
+    let g = 0, p = 0;
+    for (let i = 1; i <= n; i++) { const d = v[i] - v[i - 1]; if (d > 0) g += d; else p -= d; }
+    g /= n; p /= n; out[n] = p === 0 ? 100 : 100 - 100 / (1 + g / p);
+    for (let i = n + 1; i < v.length; i++) { const d = v[i] - v[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; p = (p * (n - 1) + Math.max(-d, 0)) / n; out[i] = p === 0 ? 100 : 100 - 100 / (1 + g / p); }
+    return out;
+  }
+  /** Picos e vales (zigue-zague): um extremo só é confirmado depois de uma reversão de pelo menos `limiar` (fração).
+      Devolve [{i, v, tipo: "pico" | "vale", confirmado}] — o último é o extremo em formação. */
+  function picosVales(v, limiar) {
+    const out = []; if (v.length < 3) return out;
+    let dir = 0, iExt = 0, iMax = 0, iMin = 0;
+    for (let i = 1; i < v.length; i++) {
+      if (dir === 0) {
+        if (v[i] > v[iMax]) iMax = i; if (v[i] < v[iMin]) iMin = i;
+        if (v[i] >= v[iMin] * (1 + limiar)) { out.push({ i: iMin, v: v[iMin], tipo: "vale", confirmado: true }); dir = 1; iExt = i; }
+        else if (v[i] <= v[iMax] * (1 - limiar)) { out.push({ i: iMax, v: v[iMax], tipo: "pico", confirmado: true }); dir = -1; iExt = i; }
+      } else if (dir === 1) {
+        if (v[i] > v[iExt]) iExt = i;
+        else if (v[i] <= v[iExt] * (1 - limiar)) { out.push({ i: iExt, v: v[iExt], tipo: "pico", confirmado: true }); dir = -1; iExt = i; }
+      } else {
+        if (v[i] < v[iExt]) iExt = i;
+        else if (v[i] >= v[iExt] * (1 + limiar)) { out.push({ i: iExt, v: v[iExt], tipo: "vale", confirmado: true }); dir = 1; iExt = i; }
+      }
+    }
+    if (dir !== 0) out.push({ i: iExt, v: v[iExt], tipo: dir === 1 ? "pico" : "vale", confirmado: false });
+    return out;
+  }
+
   /** Cópia funda simples dos parâmetros com substituições (obj de mesmo formato, só o que muda). */
   function mesclar(base, extra) {
     const o = JSON.parse(JSON.stringify(base));
@@ -239,5 +278,5 @@
   }
 
   return { data, num, media, mediaPond, quantil, mesDe, anoDe, somaDias, difDias, segundaDe, mesesEntre, ultimoAte, porMes, preencher,
-    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar };
+    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales };
 });

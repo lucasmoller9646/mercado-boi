@@ -2,7 +2,7 @@
  * Mercado do Boi — ponte de dados (Google Apps Script, app da Web).
  *
  * Serve em JSON, somente leitura, as colunas necessárias das planilhas internas
- * (compras de reposição, resultados do confinamento e matérias-primas) para o painel
+ * (compras de reposição, resultados do confinamento, matérias-primas e câmbio do BCP) para o painel
  * publicado no GitHub Pages. As planilhas continuam privadas: quem lê é a conta que
  * implanta este script. Nomes de fornecedores, facturas, guías e links não são enviados.
  *
@@ -17,7 +17,7 @@
  *           <URL do app>?k=<chave>&fresco=1   → ignora o cache
  */
 
-var VERSAO = '2026-11-26b';
+var VERSAO = '2026-11-26c';
 var CACHE_MINUTOS = 15;
 
 var FONTES = {
@@ -45,6 +45,11 @@ var FONTES = {
       'CAMBIO DEL DIA', 'CONTRATO GS/TON', 'MONEDA', 'CANTIDAD S/ REMISION EN KG', 'COSTO DEL FLETE USD',
       'COSTO TON + FLETE USD + DESCARGA (FEED MANAGER)'],
     filtro: { coluna: 'PRODUCTO', contem: 'MAIZ' }
+  },
+  cambio_bcp: {
+    id: '12Wm3awcR9lmzxyMYt5ySoZe6OcD99Uh23CIhtH_JLDY', aba: 'Intradia', cacheMinutos: 1,
+    colunas: ['data', 'hora_corte', 'compra_corte', 'venda_corte', 'compra_acumulado', 'venda_acumulado', 'corte_sem_negocios', 'origem', 'capturado_em'],
+    obrigatoria: 'data'
   },
   milho_contratos: {
     id: '1UTd1ImU9o5oFeZn_n8oeGHchA4YEzciP-bwMRjTF3J0', aba: 'Contratos Materia Prima',
@@ -107,10 +112,11 @@ function norm_(s) {
 
 function ler_(nome) {
   var f = FONTES[nome];
-  var planilha = SpreadsheetApp.openById(f.id);
-  var aba = planilha.getSheetByName(f.aba);
-  if (!aba) throw new Error('aba "' + f.aba + '" não encontrada');
-  var valores = aba.getDataRange().getValues();
+  // Serviço avançado do Sheets: funciona com o escopo "somente leitura" (SpreadsheetApp.openById exigiria acesso total).
+  // Números vêm crus; datas e horas vêm como aparecem na planilha (o painel sabe ler dd/mm/aaaa, 17-Nov.-26, 08:30).
+  var resp = Sheets.Spreadsheets.Values.get(f.id, "'" + f.aba + "'", { valueRenderOption: 'UNFORMATTED_VALUE', dateTimeRenderOption: 'FORMATTED_STRING' });
+  var valores = resp.values || [];
+  if (!valores.length) throw new Error('aba "' + f.aba + '" vazia ou não encontrada');
   var cab = valores[0].map(norm_);
   var idx = [], rotulos = [], faltando = [];
   f.colunas.forEach(function (c) {
@@ -121,7 +127,6 @@ function ler_(nome) {
   });
   var iFiltro = f.filtro ? cab.indexOf(norm_(f.filtro.coluna)) : -1;
   var iObrig = f.obrigatoria ? cab.indexOf(norm_(f.obrigatoria)) : -1;
-  var tz = planilha.getSpreadsheetTimeZone(); // datas saem no fuso da própria planilha (evita virar o dia)
   var linhas = [];
   for (var r = 1; r < valores.length; r++) {
     var lin = valores[r];
@@ -130,9 +135,8 @@ function ler_(nome) {
     var o = [];
     for (var k = 0; k < idx.length; k++) {
       var v = lin[idx[k]];
-      if (v instanceof Date) v = Utilities.formatDate(v, tz, 'yyyy-MM-dd');
-      else if (typeof v === 'number') v = Math.round(v * 1e6) / 1e6;
-      else if (v === '') v = null;
+      if (typeof v === 'number') v = Math.round(v * 1e6) / 1e6;
+      else if (v === '' || v === undefined) v = null;
       o.push(v);
     }
     linhas.push(o);
@@ -158,7 +162,7 @@ function lerComCache_(nome, fresco) {
     var s = JSON.stringify(dados), tam = 90000, mapa = {}, total = Math.ceil(s.length / tam);
     for (var c = 0; c < total; c++) mapa[base + c] = s.substr(c * tam, tam);
     mapa[base + 'n'] = String(total);
-    cache.putAll(mapa, CACHE_MINUTOS * 60);
+    cache.putAll(mapa, (FONTES[nome].cacheMinutos || CACHE_MINUTOS) * 60);
   } catch (err) { /* cache é só conveniência */ }
   return dados;
 }

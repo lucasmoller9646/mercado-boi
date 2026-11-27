@@ -46,5 +46,14 @@ ok("quantil", C.quantil([1, 2, 3, 4, 5], 0.1), 1.4);
 ok("precoKg indicador 180", C.precoKg(13235, 126.9, 180), 22565, 1e-4);
 const pm = C.preencher(["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"], new Map([["2026-02", 10], ["2026-04", 20]]));
 eq("preencher", JSON.stringify(pm.v), "[10,10,15,20,20]");
+// análise técnica
+eq("mms", JSON.stringify(C.mms([1, 2, 3, 4, 5], 3)), "[null,null,2,3,4]");
+ok("ifr só altas", C.ifr([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], 14)[15], 100);
+// IFR(14) do exemplo clássico de Wilder: 70,46 no 15º fechamento
+const w = [44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.00, 46.03, 46.41, 46.22, 45.64];
+ok("ifr Wilder", C.ifr(w, 14)[14], 70.46, 2e-3); ok("ifr Wilder +1", C.ifr(w, 14)[15], 66.25, 2e-3);
+const pv = C.picosVales([100, 101, 103, 102, 99, 98, 100, 104, 103.5], 0.02);
+eq("picos e vales", JSON.stringify(pv.map((x) => [x.i, x.tipo, x.confirmado])), '[[0,"vale",true],[2,"pico",true],[5,"vale",true],[7,"pico",false]]');
+ok("mediana", C.mediana([5, 1, 3, null, 9]), 4);
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);
