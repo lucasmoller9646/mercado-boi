@@ -8,7 +8,7 @@
   window.MB_INFO = {
     // ------------------------------------------------------------ boi gordo e milho
     "g-boi-serie": {
-      fonte: "Paraguai: novillo do Valor Agro, raspado todo dia para a planilha “Precios Valor Agro”; antes do início da raspagem, a série da planilha Correlación. Brasil: até maio de 2026, a série âncora da planilha Correlación; daí em diante, o Indicador do Boi DATAGRO SP (primitiva pública, guardada dia a dia pelo robô do repositório), em R$/@ ÷ 15 kg ÷ dólar comercial do dia. Ypoti: Resultados do Confinamento.",
+      fonte: "Paraguai: novillo do Valor Agro, raspado todo dia para a planilha “Precios Valor Agro”; antes do início da raspagem, a série da planilha Correlación. Brasil: até 2025, a série âncora da planilha Correlación; de 2026 em diante, o Indicador do Boi DATAGRO SP dia a dia (a série histórica de 2026 da DATAGRO e, a partir de 27/11, a primitiva pública que o robô do repositório guarda todo dia), em R$/@ ÷ 15 kg ÷ PTAX de venda do mesmo dia (Banco Central do Brasil). De janeiro a abril de 2026 as duas séries do Brasil diferem menos de 1 %; a última semana da âncora (maio) estava ~6 % acima e foi substituída. Ypoti: Resultados do Confinamento.",
       conta: "Tudo em US$ por kg de carcaça. A linha da Ypoti é o preço médio do mês, ponderado pelas cabeças abatidas (por padrão, só lotes da Rural Bioenergia).",
       ler: "A distância entre a linha azul e a verde é o basis do Paraguai sobre o Brasil. A laranja acima da azul quer dizer que vendemos com prêmio sobre o mercado.",
     },

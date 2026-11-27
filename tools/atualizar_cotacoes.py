@@ -51,25 +51,42 @@ ASU = dt.timezone(dt.timedelta(hours=-3))
 
 
 def historico_dolar(desde):
-    """Fechamento diário do dólar comercial (R$ por US$) desde a data pedida: {AAAA-MM-DD: valor}.
-    Yahoo (BRL=X) primeiro; a AwesomeAPI costuma responder 429 às máquinas do GitHub e fica de reserva."""
-    serie = {}
+    """Dólar do dia (R$ por US$) desde a data pedida: {AAAA-MM-DD: valor}.
+    1º PTAX de venda do Banco Central (SGS 1), a taxa oficial do dia; 2º fechamento da AwesomeAPI (costuma dar 429
+    às máquinas do GitHub); 3º Yahoo, cuja barra diária de câmbio traz no "fechamento" o preço da virada do dia em
+    Londres, ou seja, o fechamento do dia útil anterior: por isso cada barra vai para o dia anterior ao do carimbo."""
+    hoje = dt.date.today()
     try:
-        p1 = int(dt.datetime.combine(desde - dt.timedelta(days=10), dt.time(), dt.timezone.utc).timestamp())
-        p2 = int(dt.datetime.now(dt.timezone.utc).timestamp()) + 86400
-        r = pegar("https://query1.finance.yahoo.com/v8/finance/chart/BRL=X?period1=%d&period2=%d&interval=1d" % (p1, p2))["chart"]["result"][0]
-        fech = (r.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
-        desloc = (r.get("meta") or {}).get("gmtoffset") or 0  # o dia do Yahoo é o dia de Londres (no verão, 23h UTC da véspera)
-        for t, v in zip(r.get("timestamp") or [], fech):
-            if v and 3 < v < 10:
-                serie[dt.datetime.fromtimestamp(t + desloc, dt.timezone.utc).date().isoformat()] = round(v, 4)
+        url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=json&dataInicial=%s&dataFinal=%s" % (
+            desde.strftime("%d/%m/%Y"), hoje.strftime("%d/%m/%Y"))
+        serie = {}
+        for x in pegar(url, 60):
+            d, m, a = x["data"].split("/")
+            serie["%s-%s-%s" % (a, m, d)] = round(float(x["valor"]), 4)
+        if serie:
+            return serie, "PTAX de venda (Banco Central do Brasil)"
     except Exception as e:
-        print("dólar pelo Yahoo falhou:", e, file=sys.stderr)
-    if not serie:
-        dias = min(360, (dt.date.today() - desde).days + 15)
+        print("PTAX falhou:", e, file=sys.stderr)
+    try:
+        dias = min(360, (hoje - desde).days + 15)
+        serie = {}
         for x in pegar("https://economia.awesomeapi.com.br/json/daily/USD-BRL/%d" % dias):
-            serie[dt.datetime.fromtimestamp(int(x["timestamp"]), ASU).date().isoformat()] = round(float(x["bid"]), 4)
-    return serie
+            d = dt.datetime.fromtimestamp(int(x["timestamp"]), ASU).date()
+            if d.weekday() < 5 and d.isoformat() not in serie:
+                serie[d.isoformat()] = round(float(x["bid"]), 4)
+        if serie:
+            return serie, "fechamento do dólar comercial (AwesomeAPI)"
+    except Exception as e:
+        print("AwesomeAPI falhou:", e, file=sys.stderr)
+    p1 = int(dt.datetime.combine(desde - dt.timedelta(days=10), dt.time(), dt.timezone.utc).timestamp())
+    p2 = int(dt.datetime.now(dt.timezone.utc).timestamp()) + 86400
+    r = pegar("https://query1.finance.yahoo.com/v8/finance/chart/BRL=X?period1=%d&period2=%d&interval=1d" % (p1, p2))["chart"]["result"][0]
+    fech = (r.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+    serie = {}
+    for t, v in zip(r.get("timestamp") or [], fech):
+        if v and 3 < v < 10:
+            serie[dt.datetime.fromtimestamp(t - 3600, dt.timezone.utc).date().isoformat()] = round(v, 4)
+    return serie, "dólar comercial (Yahoo BRL=X)"
 
 
 def dolar_em(serie, dia):
@@ -96,9 +113,11 @@ def boi_datagro():
     # dólar do dia para todo ponto que ainda não tem (inclui a série histórica que veio da DATAGRO)
     faltam = sorted(d for d, x in pts.items() if not x.get("brl"))
     if faltam:
-        serie = historico_dolar(dt.date.fromisoformat(faltam[0]))
+        serie, fonte = historico_dolar(dt.date.fromisoformat(faltam[0]))
         for d in faltam:
             pts[d]["brl"] = dolar_em(serie, d)
+        arq["fonte"] = ("Indicador do Boi DATAGRO SP (D_PEPR_SP_BR), R$/@ à vista: série histórica de 02/01 a 26/11/2026 enviada "
+                        "pelo Lucas e, depois, a primitiva do dia. Dólar do dia: " + fonte)
     if novo is None and not faltam:
         raise ValueError("nada novo")
     arq["pontos"] = [pts[k] for k in sorted(pts)]

@@ -126,13 +126,15 @@
 
     // ================================================================ boi gordo
     const anc = D.anc.boi, va = D.gordo;
-    // Brasil: série âncora (US$/kg carcaça) + Indicador do Boi DATAGRO guardado dia a dia + o de hoje (R$/@ ÷ 15 ÷ dólar)
+    // Brasil: série âncora (US$/kg carcaça) + Indicador do Boi DATAGRO dia a dia (série de 2026 e primitiva) + o de hoje (R$/@ ÷ 15 ÷ dólar).
+    // Dia do DATAGRO com o próprio dólar (PTAX) vale mais que a âncora: o fim da âncora (mai/2026) foi preenchido à mão, ~6 % acima.
+    const ancFim = anc.d[anc.d.length - 1] || "";
     const brMapa = new Map(); anc.d.forEach((d, i) => brMapa.set(d, anc.br[i]));
     const ptsBr = ((D.br && D.br.pontos) || []).slice();
     const brHoje = D.br && D.br.hoje;
     if (brHoje && !ptsBr.some((x) => x.d === brHoje.d)) ptsBr.push({ d: brHoje.d, rs: brHoje.rs, brl: null });
     const fxBr = (x) => x.brl > 3 ? x.brl : (D.fx.brl || null);
-    ptsBr.forEach((x) => { const f = fxBr(x); if (f && x.d > (anc.d[anc.d.length - 1] || "")) brMapa.set(x.d, x.rs / 15 / f); });
+    ptsBr.forEach((x) => { const f = fxBr(x); if (f && (x.brl > 3 || x.d > ancFim)) brMapa.set(x.d, x.rs / 15 / f); });
     const brD = [...brMapa.keys()].sort(), brV = brD.map((d) => brMapa.get(d));
     const pyD = [], pyV = [];
     const corteVA = va.length ? va[0].d : "9999";
@@ -140,7 +142,7 @@
     va.forEach((l) => { pyD.push(l.d); pyV.push(l.nov); });
     const pyEm = C.ultimoAte(pyD, pyV);
     // depois do fim da âncora, o basis diário sai do Valor Agro contra o DATAGRO do mesmo dia
-    const basisNovo = brD.filter((d) => d > (anc.d[anc.d.length - 1] || "") && va.length && d >= va[0].d).map((d) => ({ d, b: pyEm(d) / brMapa.get(d) - 1 }));
+    const basisNovo = brD.filter((d) => d > ancFim && va.length && d >= va[0].d).map((d) => ({ d, b: pyEm(d) / brMapa.get(d) - 1 }));
     const ult = va.length ? va[va.length - 1] : null;
     const pyHoje = ult ? ult.nov : pyV[pyV.length - 1];
     let pySemana = null;
@@ -161,7 +163,7 @@
       porPreco: Object.keys(porPreco).sort().map((k) => ({ preco: +k, cab: porPreco[k] })) } : null;
 
     // basis Paraguai × Brasil (% sobre o Brasil), sazonal
-    const basisBoi = anc.d.map((d, i) => ({ d, b: anc.py[i] / anc.br[i] - 1 })).concat(basisNovo);
+    const basisBoi = anc.d.map((d, i) => ({ d, b: anc.py[i] / brMapa.get(d) - 1 })).concat(basisNovo);
     const sazBoi = C.basisSazonal(basisBoi, S.qmin, S.qmax, S.basisAnosBoi, M.hoje);
     const anoCorr = String(C.anoDe(M.hoje));
     const basisAno = C.porMes(basisBoi.filter((l) => l.d.slice(0, 4) === anoCorr).map((l) => ({ d: l.d, v: l.b })));
