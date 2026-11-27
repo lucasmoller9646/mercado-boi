@@ -136,10 +136,23 @@ def cme():
     cod = cs[0]
     m = jbaixar("https://query1.finance.yahoo.com/v8/finance/chart/%s.CBT?range=5d&interval=1d" % cod)["chart"]["result"][0]["meta"]
     v, a = m.get("regularMarketPrice"), m.get("chartPreviousClose") or m.get("previousClose")
-    return {"id": "cme", "rot": "CME " + cod[2:], "val": v, "dec": 0, "un": "¢/bushel", "var": var(v, a), "quando": None, "fonte": "Milho em Chicago"}
+    return {"id": "cme", "rot": "CME " + cod[2:], "val": v, "dec": 0, "un": "¢/bushel", "var": var(v, a), "quando": hora_yahoo(m), "fonte": "Milho em Chicago"}
+
+
+def hora_yahoo(m):
+    t = m.get("regularMarketTime")
+    return dt.datetime.fromtimestamp(t, ASU).strftime("%Y-%m-%d %H:%M") if t else None
 
 
 def brl():
+    """Dólar comercial: Yahoo (BRL=X) e, se falhar, AwesomeAPI (que costuma responder 429 às máquinas do GitHub)."""
+    try:
+        m = jbaixar("https://query1.finance.yahoo.com/v8/finance/chart/BRL=X?range=5d&interval=1d")["chart"]["result"][0]["meta"]
+        v, a = m.get("regularMarketPrice"), m.get("chartPreviousClose") or m.get("previousClose")
+        if v:
+            return {"id": "brl", "rot": "R$/US$", "val": v, "dec": 3, "un": "R$ por dólar", "var": var(v, a), "quando": hora_yahoo(m), "fonte": "Dólar comercial"}
+    except Exception as e:
+        print("brl pelo Yahoo falhou:", e, file=sys.stderr)
     j = jbaixar("https://economia.awesomeapi.com.br/json/last/USD-BRL")["USDBRL"]
     return {"id": "brl", "rot": "R$/US$", "val": float(j["bid"]), "dec": 3, "un": "R$ por dólar", "var": float(j["pctChange"]) / 100, "quando": j.get("create_date"), "fonte": "Dólar comercial"}
 
@@ -185,24 +198,54 @@ def bcp():
 
 
 # ------------------------------------------------------------------ notícias
+# O Google Notícias não tem edição do Paraguai: gl=PY cai na edição latino-americana (dólar de cada país).
+# Por isso a consulta do Paraguai exige Paraguay/guaraní/BCP e o filtro exige jornal .py ou "Paraguay" no título.
 CONSULTAS = [
-    ("Paraguai", "es-419", "PY", "PY:es-419", '(dólar OR guaraní OR "tipo de cambio" OR BCP OR "Banco Central del Paraguay" OR inflación OR "tasa de política monetaria") when:1d'),
-    ("EUA", "en-US", "US", "US:en", '(Fed OR FOMC OR Powell OR "Federal Reserve" OR CPI OR inflation OR payrolls OR "Treasury yields" OR "dollar index") when:1d'),
-    ("Brasil", "pt-BR", "BR", "BR:pt-419", '(dólar OR Copom OR Selic OR "Banco Central" OR IPCA OR câmbio) when:1d'),
+    ("Paraguai", "es-419", "US", "US:es-419",
+     '(dólar OR "tipo de cambio" OR divisas OR inflación OR BCP OR "Banco Central del Paraguay" OR "política monetaria") (Paraguay OR guaraní OR BCP) when:2d'),
+    ("EUA", "en-US", "US", "US:en",
+     '(Fed OR FOMC OR "Federal Reserve" OR CPI OR PCE OR payrolls OR "jobs report" OR "Treasury yields" OR "dollar index") when:1d'),
+    ("Brasil", "pt-BR", "BR", "BR:pt-419", '(dólar OR Copom OR Selic OR IPCA OR "Banco Central" OR Galípolo) when:1d'),
 ]
+LIMITE = {"Paraguai": 16, "EUA": 12, "Brasil": 8}
 TEMAS = [
-    ("Fed", r"\bfed\b|fomc|powell|federal reserve|reserva federal"),
+    ("Fed", r"\bfed\b|fomc|fed chair|federal reserve|reserva federal"),
     ("BCP", r"\bbcp\b|banco central del paraguay"),
-    ("Inflação", r"\bcpi\b|\bipc\b|ipca|inflaci|inflation|inflação|precios al consumidor"),
-    ("Juros", r"selic|copom|tasa de pol|interest rate|rate cut|rate hike|juros|treasury|yields"),
-    ("Emprego", r"payroll|nonfarm|desemprego|desempleo|jobs report|empleo"),
-    ("Câmbio", r"d[óo]lar|guaran[ií]|tipo de cambio|câmbio|cambio|dollar|real\b"),
+    ("Inflação", r"\bcpi\b|\bpce\b|\bipc\b|ipca|inflaci|inflation|inflação|precios al consumidor"),
+    ("Juros", r"selic|copom|tasa de pol|política monetari|interest rate|rate cut|rate hike|juros|treasury|yields"),
+    ("Emprego", r"payroll|nonfarm|jobs report|desemprego|desempleo|unemployment"),
+    ("Câmbio", r"d[óo]lar|dollar|greenback|\bdxy\b|tipo de cambio|cambiari|câmbio|divisas|guaraní|\bpyg\b"),
 ]
 PESO_TEMA = {"Fed": 3, "BCP": 3, "Inflação": 2, "Juros": 2, "Emprego": 2, "Câmbio": 1}
+# o que não mexe com o câmbio do guaraní: dólar de outros países, outras moedas, esporte, carro, polícia
+RUIDO = (r"hoy en (bolivia|colombia|chile|per[úu]|uruguay|m[ée]xico|argentina|venezuela|rep[úu]blica dominicana|honduras|guatemala|"
+         r"costa rica|nicaragua|ecuador|el salvador|panam[áa]|cuba|espa[ñn]a|brasil)|peso (mexicano|colombiano|chileno|argentino|uruguayo)|"
+         r"\bblue\b|\bmep\b|colones|\bsoles\b|\bwon\b|surcoreano|\byen\b|iene|rupee|rupia|canad|australian|aussie|\bkiwi\b|yuan|sterling|"
+         r"\bgold\b|\boro\b|\bouro\b|bitcoin|cripto|black friday|minimum wage|salário mínimo|"
+         r"f[úu]tbol|\bclub\b|torneo|partido|\bgol\b|mitre|aeropuerto|armas|prisi[óo]n|arresto|domiciliario|\bjuez\b|fiscal[íi]a|senabico|"
+         r"câmbio (manual|automático)|\bcarro|veículo|\bcv\b|\bgolf\b|melhores apps|ao vivo|onde comprar|\bpix\b")
+JORNAIS_PY = ("ultimahora.com", "lanacion.com.py", "abc.com.py", "5dias.com.py", "hoy.com.py", "npy.com.py", "marketdata.com.py",
+              "infonegocios.com.py", "elnacional.com.py", "latribuna.com.py", "independiente.com.py", "rdn.com.py", "bcp.gov.py")
+EUA_ANCORA = r"\bfed\b|fomc|federal reserve|treasur|\bcpi\b|\bpce\b|payroll|nonfarm|jobs report|dollar index|\bdxy\b|u\.?s\.? dollar|greenback|u\.?s\.? (inflation|economy|consumer|jobs)"
+
+
+def relevante(regiao, titulo, site):
+    """Fica a manchete que é da região certa e fala de câmbio, juros, inflação ou emprego, sem o ruído conhecido."""
+    if re.search(RUIDO, titulo, re.I):
+        return False
+    if regiao == "Paraguai":
+        doPY = site.endswith(".py") or any(site.endswith(j) for j in JORNAIS_PY) or re.search(r"paragua", titulo, re.I)
+        financas = re.search(r"d[óo]lar|tipo de cambio|cambiari|divisas|inflaci|\bipc\b|\btasas?\b|\bbcp\b|banco central|"
+                             r"reservas|dep[óo]sitos|sistema financiero|bonos|encaje|pol[íi]tica monetaria|exportaci|importaci", titulo, re.I)
+        return bool(doPY and financas)
+    if regiao == "EUA":
+        return bool(re.search(EUA_ANCORA, titulo, re.I) or re.search(r"\binflation\b", titulo, re.I) and re.search(r"\bu\.?s\.?\b|americans?|fed", titulo, re.I))
+    return True
 
 
 def noticias():
     itens, vistos = [], set()
+    agora = dt.datetime.now(dt.timezone.utc)
     for regiao, hl, gl, ceid, q in CONSULTAS:
         url = "https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": q, "hl": hl, "gl": gl, "ceid": ceid})
         try:
@@ -210,26 +253,31 @@ def noticias():
         except Exception as e:
             print("notícias", regiao, "falhou:", e, file=sys.stderr)
             continue
+        daRegiao = []
         for it in raiz.iter("item"):
             titulo = (it.findtext("title") or "").strip()
             fonte = (it.findtext("source") or "").strip()
             if fonte and titulo.endswith(" - " + fonte):
                 titulo = titulo[: -len(" - " + fonte)]
+            src = it.find("source")
+            site = urllib.parse.urlparse(src.get("url") if src is not None else "").netloc.lower()
             chave = re.sub(r"\W+", "", titulo.lower())[:80]
-            if not titulo or chave in vistos:
+            if not titulo or chave in vistos or not relevante(regiao, titulo, site):
                 continue
             temas = [n for n, rx in TEMAS if re.search(rx, titulo, re.I)]
             if not temas:
                 continue
-            vistos.add(chave)
             try:
                 quando = email.utils.parsedate_to_datetime(it.findtext("pubDate")).astimezone(dt.timezone.utc)
             except Exception:
                 continue
-            itens.append({"t": titulo, "url": it.findtext("link"), "fonte": fonte, "regiao": regiao, "temas": temas,
-                          "peso": max(PESO_TEMA[t] for t in temas), "quando": quando.strftime("%Y-%m-%dT%H:%M:%SZ")})
-    agora = dt.datetime.now(dt.timezone.utc)
-    itens = [x for x in itens if (agora - dt.datetime.strptime(x["quando"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)).total_seconds() < 36 * 3600]
+            if (agora - quando).total_seconds() > 36 * 3600:
+                continue
+            vistos.add(chave)
+            daRegiao.append({"t": titulo, "url": it.findtext("link"), "fonte": fonte, "regiao": regiao, "temas": temas,
+                             "peso": max(PESO_TEMA[t] for t in temas), "quando": quando.strftime("%Y-%m-%dT%H:%M:%SZ")})
+        daRegiao.sort(key=lambda x: x["quando"], reverse=True)
+        itens += daRegiao[: LIMITE.get(regiao, 12)]
     itens.sort(key=lambda x: x["quando"], reverse=True)
     return itens[:40]
 

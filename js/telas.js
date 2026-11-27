@@ -587,9 +587,12 @@
   function haQuanto(iso) { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 60 ? "há " + m + " min" : m < 1440 ? "há " + Math.round(m / 60) + " h" : "há " + Math.round(m / 1440) + " d"; }
   function noticias(M) {
     const el = document.getElementById("noticias-cambio"); if (!el) return;
-    const itens = (M.noticias || []).slice(0, 18);
+    // um pouco de cada praça (Paraguai, EUA, Brasil), as mais recentes de cada, depois em ordem de hora
+    const COTA = { Paraguai: 8, EUA: 6, Brasil: 4 }, SIGLA = { Paraguai: "PY", EUA: "EUA", Brasil: "BR" }, usados = {};
+    const itens = (M.noticias || []).filter((n) => { const r = n.regiao || ""; usados[r] = (usados[r] || 0) + 1; return usados[r] <= (COTA[r] || 4); })
+      .sort((a, b) => (a.quando < b.quando ? 1 : -1)).slice(0, 18);
     if (!itens.length) { el.hidden = true; return; }
-    const html = itens.map((n) => '<a class="nt" href="' + esc(n.url) + '" target="_blank" rel="noopener"><b class="tag t-' + esc((n.temas || [])[0] || "").normalize("NFD").replace(/[^a-z]/gi, "").toLowerCase() + '">' + esc((n.temas || []).join(" · ")) + "</b>" +
+    const html = itens.map((n) => '<a class="nt" href="' + esc(n.url) + '" target="_blank" rel="noopener"><b class="tag t-' + esc((n.temas || [])[0] || "").normalize("NFD").replace(/[^a-z]/gi, "").toLowerCase() + '">' + esc([SIGLA[n.regiao]].concat(n.temas || []).filter(Boolean).join(" · ")) + "</b>" +
       "<time>" + haQuanto(n.quando) + "</time>" + esc(n.t) + (n.fonte ? '<span class="fonte"> · ' + esc(n.fonte) + "</span>" : "") + "</a>").join("");
     el.hidden = false;
     el.innerHTML = '<span class="nt-rot">Notícias</span><div class="nt-janela"><div class="nt-trilho" style="--dur:' + Math.max(60, itens.length * 9) + 's">' + html + html + "</div></div>";
