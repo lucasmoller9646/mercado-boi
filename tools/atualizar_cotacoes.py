@@ -47,31 +47,62 @@ def gravar(nome, obj):
     return True
 
 
-def dolar_do_dia(dia):
-    """Fechamento do dólar comercial (R$) no dia do indicador; se não houver, o último disponível."""
-    serie = pegar("https://economia.awesomeapi.com.br/json/daily/USD-BRL/15")
-    pontos = sorted(((dt.datetime.fromtimestamp(int(x["timestamp"]), dt.timezone(dt.timedelta(hours=-3))).date().isoformat(), float(x["bid"])) for x in serie))
-    escolhido = None
-    for d, v in pontos:
-        if d <= dia:
-            escolhido = v
-    return escolhido or (pontos[-1][1] if pontos else None)
+ASU = dt.timezone(dt.timedelta(hours=-3))
+
+
+def historico_dolar(desde):
+    """Fechamento diário do dólar comercial (R$ por US$) desde a data pedida: {AAAA-MM-DD: valor}.
+    Yahoo (BRL=X) primeiro; a AwesomeAPI costuma responder 429 às máquinas do GitHub e fica de reserva."""
+    serie = {}
+    try:
+        p1 = int(dt.datetime.combine(desde - dt.timedelta(days=10), dt.time(), dt.timezone.utc).timestamp())
+        p2 = int(dt.datetime.now(dt.timezone.utc).timestamp()) + 86400
+        r = pegar("https://query1.finance.yahoo.com/v8/finance/chart/BRL=X?period1=%d&period2=%d&interval=1d" % (p1, p2))["chart"]["result"][0]
+        fech = (r.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+        desloc = (r.get("meta") or {}).get("gmtoffset") or 0  # o dia do Yahoo é o dia de Londres (no verão, 23h UTC da véspera)
+        for t, v in zip(r.get("timestamp") or [], fech):
+            if v and 3 < v < 10:
+                serie[dt.datetime.fromtimestamp(t + desloc, dt.timezone.utc).date().isoformat()] = round(v, 4)
+    except Exception as e:
+        print("dólar pelo Yahoo falhou:", e, file=sys.stderr)
+    if not serie:
+        dias = min(360, (dt.date.today() - desde).days + 15)
+        for x in pegar("https://economia.awesomeapi.com.br/json/daily/USD-BRL/%d" % dias):
+            serie[dt.datetime.fromtimestamp(int(x["timestamp"]), ASU).date().isoformat()] = round(float(x["bid"]), 4)
+    return serie
+
+
+def dolar_em(serie, dia):
+    """Dólar do próprio dia; se o dia não tiver cotação (feriado), o último dia anterior que tiver."""
+    ds = sorted(d for d in serie if d <= dia)
+    return serie[ds[-1]] if ds else None
 
 
 def boi_datagro():
-    prim = pegar("https://precos.api.datagro.com/dados?a=D_PEPR_SP_BR")
-    p = prim[0] if isinstance(prim, list) else prim
-    dia, ult = str(p.get("dia", ""))[:10], p.get("ult")
-    if not dia or not isinstance(ult, (int, float)) or ult <= 0:
-        raise ValueError("primitiva sem dia ou preço")
     arq = ler("boi_br_diario.json", {"fonte": "", "pontos": []})
-    arq["fonte"] = "Indicador do Boi DATAGRO SP (D_PEPR_SP_BR), R$/@ à vista; dólar comercial do dia (AwesomeAPI)"
     pts = {x["d"]: x for x in arq.get("pontos", [])}
-    antes = pts.get(dia)
-    brl = antes["brl"] if antes and antes.get("rs") == ult else dolar_do_dia(dia)
-    pts[dia] = {"d": dia, "rs": ult, "var": p.get("var"), "brl": round(brl, 4) if brl else None}
+    novo = None
+    try:
+        prim = pegar("https://precos.api.datagro.com/dados?a=D_PEPR_SP_BR")
+        p = prim[0] if isinstance(prim, list) else prim
+        dia, ult = str(p.get("dia", ""))[:10], p.get("ult")
+        if not dia or not isinstance(ult, (int, float)) or ult <= 0:
+            raise ValueError("primitiva sem dia ou preço")
+        antes = pts.get(dia)
+        pts[dia] = {"d": dia, "rs": ult, "var": p.get("var"), "brl": antes.get("brl") if antes and antes.get("rs") == ult else None}
+        novo = (dia, ult)
+    except Exception as e:
+        print("primitiva da DATAGRO falhou:", e, file=sys.stderr)
+    # dólar do dia para todo ponto que ainda não tem (inclui a série histórica que veio da DATAGRO)
+    faltam = sorted(d for d, x in pts.items() if not x.get("brl"))
+    if faltam:
+        serie = historico_dolar(dt.date.fromisoformat(faltam[0]))
+        for d in faltam:
+            pts[d]["brl"] = dolar_em(serie, d)
+    if novo is None and not faltam:
+        raise ValueError("nada novo")
     arq["pontos"] = [pts[k] for k in sorted(pts)]
-    return gravar("boi_br_diario.json", arq), dia, ult
+    return gravar("boi_br_diario.json", arq), novo, len(faltam)
 
 
 MESES = "FGHJKMNQUVXZ"
