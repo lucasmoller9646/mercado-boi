@@ -1,0 +1,2 @@
+web/marca.woff2 = Outfit Medium (On Brand Investments / Rodrigo Fuenzalida), SIL Open Font License 1.1 — https://openfontlicense.org
+Usada só no nome "Almanaque" (marca). Servida pelo próprio Almanaque (sem fontes externas).

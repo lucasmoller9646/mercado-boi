@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#06130C">
+<title>Mercado do Boi · Ypoti</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="css/app.css?v=2026-11-26a">
+</head>
+<body>
+<div class="fundo" aria-hidden="true"><i class="foto"></i><i class="veu-foto"></i><i class="bolha b1"></i><i class="bolha b2"></i><i class="bolha b3"></i><i class="grao"></i></div>
+
+<div class="app">
+  <header class="topo">
+    <a class="marca" href="./" aria-label="Mercado do Boi — Ypoti">
+      <img src="assets/logo-branco.png" alt="Ypoti"><span class="marca-sep"></span><span class="marca-nome">Mercado do Boi</span>
+    </a>
+    <nav class="segmentado" role="tablist" aria-label="Telas">
+      <button role="tab" data-tela="gordo" aria-selected="true">Boi gordo e milho</button>
+      <button role="tab" data-tela="reposicao" aria-selected="false">Reposição</button>
+      <button role="tab" data-tela="lucro" aria-selected="false">Lucratividade</button>
+    </nav>
+    <div class="topo-dir">
+      <span id="relogio" class="pilula vidro discreta-txt"></span>
+      <button id="bt-config" class="icone vidro discreto" aria-label="Configurações (tecla C)" title="Configurações (tecla C)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="palco">
+    <!-- ============ TELA 1 -->
+    <section id="tela-gordo" class="tela ativa" aria-label="Boi gordo e milho">
+      <div class="kpis" id="kpis-gordo"></div>
+      <div class="grade">
+        <article class="cartao vidro"><header><h2>Novillo: Paraguai, Brasil e a nossa venda</h2><p>US$ por kg de carcaça</p></header>
+          <div class="corpo"><div class="grafico" id="g-boi-serie"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro"><header><h2>Basis do boi, Paraguai sobre Brasil</h2><p>% sobre o preço brasileiro, por mês do ano</p></header>
+          <div class="corpo"><div class="grafico" id="g-boi-basis"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro"><header><h2>Curva futura do boi (BGI) no Paraguai</h2><p>US$/kg de carcaça, com o basis do mês</p></header>
+          <div class="corpo"><div class="grafico" id="g-boi-curva"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro"><header><h2>Milho: Paraguai interno, B3 e as nossas compras</h2><p>US$ por tonelada</p></header>
+          <div class="corpo"><div class="grafico" id="g-milho-serie"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro"><header><h2>Basis do milho, Paraguai interno menos B3</h2><p>US$ por tonelada, por mês do ano</p></header>
+          <div class="corpo"><div class="grafico" id="g-milho-basis"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro"><header><h2>Curva futura do milho (CCM) no Paraguai</h2><p>US$/t, com o basis do mês</p></header>
+          <div class="corpo"><div class="grafico" id="g-milho-curva"></div><p class="vazio" hidden></p></div></article>
+      </div>
+    </section>
+
+    <!-- ============ TELA 2 -->
+    <section id="tela-reposicao" class="tela" aria-label="Reposição">
+      <div class="kpis" id="kpis-reposicao"></div>
+      <div class="grade grade-repo">
+        <article class="cartao vidro" style="grid-area:pesos"><header><h2>Reposição macho por peso</h2><p>Indicador semanal dos leilões, Gs por kg vivo</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-pesos"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:agio"><header><h2>Ágio da reposição sobre o gordo</h2><p>Kg vivo da reposição ÷ kg vivo do gordo − 1</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-agio"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:desvio"><header><h2>Compramos bem ou mal?</h2><p>Nossas compras contra o indicador, no peso e sexo de cada lote</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-desvio"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:nuvem"><header><h2>A curva de hoje: α + β · peso</h2><p>Lotes de leilão das últimas semanas, retas do indicador e as nossas compras</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-nuvem"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:ab"><header><h2>α e β no tempo</h2><p>Serviço da vaca e quilo produzido</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-ab"></div><p class="vazio" hidden></p></div></article>
+      </div>
+    </section>
+
+    <!-- ============ TELA 3 -->
+    <section id="tela-lucro" class="tela" aria-label="Lucratividade">
+      <div class="kpis" id="kpis-lucro"></div>
+      <div class="grade grade-lucro">
+        <article class="cartao vidro" style="grid-area:serie"><header><h2>Lucro por cabeça em cada etapa</h2><p>US$ por cabeça, com os preços e os indicadores de cada mês</p></header>
+          <div class="corpo"><div class="grafico" id="g-lucro-serie"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:equil"><header><h2>Preço de venda e ponto de equilíbrio</h2><p>US$ por kg de carcaça</p></header>
+          <div class="corpo"><div class="grafico" id="g-lucro-equilibrio"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:sens"><header><h2>E se os preços mudarem?</h2><p>Lucro do ciclo completo, US$ por cabeça</p></header>
+          <div class="corpo"><div class="grafico" id="g-lucro-sens"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:conta"><header><h2>A conta de hoje</h2><p>US$ por cabeça, motor da planilha Rentabilidade do Invernista</p></header>
+          <div class="corpo rolavel" id="conta-lucro"></div></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="doca">
+    <div id="cards" class="cards" aria-label="Fontes de dados"></div>
+    <div class="rodape-dir"><span id="rotacao-txt" class="rot-txt"></span><span id="versao" class="rot-txt"></span></div>
+    <div class="progresso" aria-hidden="true"><i id="progresso"></i></div>
+  </footer>
+</div>
+
+<div id="veu" class="veu" hidden></div>
+<aside id="gaveta" class="gaveta vidro" aria-label="Configurações" aria-hidden="true">
+  <div class="gaveta-cab"><h2>Configurações</h2><button id="bt-fechar" class="icone" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <form id="form-config" class="gaveta-corpo" autocomplete="off"></form>
+  <div class="gaveta-pe">
+    <button type="button" id="bt-restaurar" class="botao">Voltar ao padrão</button>
+    <button type="button" id="bt-salvar" class="botao primario">Salvar e atualizar</button>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="js/config.js?v=2026-11-26a"></script>
+<script src="js/calc.js?v=2026-11-26a"></script>
+<script src="js/dados.js?v=2026-11-26a"></script>
+<script src="js/modelo.js?v=2026-11-26a"></script>
+<script src="js/telas.js?v=2026-11-26a"></script>
+<script src="js/app.js?v=2026-11-26a"></script>
+</body>
+</html>
