@@ -68,10 +68,12 @@ for nweeks in range(340, 356):
     err = np.mean([abs(img(x0 + i * step) - basis[i]) for i in range(0, 325, 3)])
     if best is None or err < best[0]: best = (err, nweeks, step)
 print("calibracao x: erro medio %.2f US$/t, semanas=%d, px/sem=%.3f" % best)
-_, nweeks, step = best
+# a imagem foi enviada em 30/07/2026 e o eixo termina em jul-26: a ultima semana possivel e a de 27/07/2026 (semana 350)
+nweeks = min(best[1], 350); step = (x1 - x0) / nweeks
+print("erro com %d semanas: %.2f" % (nweeks, np.mean([abs(img(x0 + i * step) - basis[i]) for i in range(0, 325, 3)])))
 cauda_d, cauda_b = [], []
 for i in range(325, nweeks + 1):
-    cauda_d.append((d0 + dt.timedelta(days=7 * i)).isoformat()); cauda_b.append(round(img(x0 + i * step), 1))
+    cauda_d.append((d0 + dt.timedelta(days=7 * i)).isoformat()); cauda_b.append(round(float(img(x0 + i * step)), 1))
 print("cauda", cauda_d[0], cauda_d[-1], cauda_b[-5:])
 json.dump({"fonte": "StoneX (Carlos Sanabria, jul/2026): Paraguai interno × CCM B3 spot, US$/t, semanal. Até jan/2026 extraído do gráfico vetorial; cauda de basis digitalizada da imagem.",
            "d": md, "py": pyi, "b3": b3, "basis": basis, "cauda_d": cauda_d, "cauda_basis": cauda_b},
