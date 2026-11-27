@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#06130C">
 <title>Mercado do Boi · Ypoti</title>
 <link rel="icon" href="assets/favicon.ico">
-<link rel="stylesheet" href="css/app.css?v=2026-11-26b">
+<link rel="stylesheet" href="css/app.css?v=2026-11-26c">
 </head>
 <body>
 <div class="fundo" aria-hidden="true"><i class="foto"></i><i class="veu-foto"></i><i class="bolha b1"></i><i class="bolha b2"></i><i class="bolha b3"></i><i class="grao"></i></div>
@@ -22,8 +22,10 @@
       <button role="tab" data-tela="gordo" aria-selected="true">Boi gordo e milho</button>
       <button role="tab" data-tela="reposicao" aria-selected="false">Reposição</button>
       <button role="tab" data-tela="lucro" aria-selected="false">Lucratividade</button>
+      <button role="tab" data-tela="cambio" aria-selected="false">Câmbio</button>
     </nav>
     <div class="topo-dir">
+      <span id="pilula-cambio" class="pilula vidro pilula-cambio" hidden></span>
       <span id="relogio" class="pilula vidro discreta-txt"></span>
       <button id="bt-config" class="icone vidro discreto" aria-label="Configurações (tecla C)" title="Configurações (tecla C)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
@@ -82,6 +84,23 @@
           <div class="corpo rolavel" id="conta-lucro"></div></article>
       </div>
     </section>
+
+    <!-- ============ TELA 4 -->
+    <section id="tela-cambio" class="tela" aria-label="Câmbio">
+      <div class="kpis" id="kpis-cambio"></div>
+      <div class="grade grade-cambio">
+        <article class="cartao vidro" style="grid-area:hist"><header><h2>Dólar em guaranis: velas, médias, picos e vales</h2><p>Gs por US$, preço médio entre compra e venda do BCP</p></header>
+          <div class="corpo"><div class="grafico" id="g-cambio-hist"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:hoje"><header><h2>O dia, corte a corte</h2><p>Gs por US$, a cada 30 minutos</p></header>
+          <div class="corpo"><div class="grafico" id="g-cambio-hoje"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:spread"><header><h2>Quando converter</h2><p>Diferença mediana entre compra e venda por horário, em bps</p></header>
+          <div class="corpo"><div class="grafico" id="g-cambio-spread"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:ifr"><header><h2>Força relativa (IFR de 14 dias)</h2><p>Acima de 70 sobrecomprado, abaixo de 30 sobrevendido</p></header>
+          <div class="corpo"><div class="grafico" id="g-cambio-ifr"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:tec"><header><h2>Leitura técnica</h2><p>Tendência, suporte, resistência e os últimos picos e vales</p></header>
+          <div class="corpo rolavel" id="tecnica-cambio"></div></article>
+      </div>
+    </section>
   </main>
 
   <footer class="doca">
@@ -102,11 +121,11 @@
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-<script src="js/config.js?v=2026-11-26b"></script>
-<script src="js/calc.js?v=2026-11-26b"></script>
-<script src="js/dados.js?v=2026-11-26b"></script>
-<script src="js/modelo.js?v=2026-11-26b"></script>
-<script src="js/telas.js?v=2026-11-26b"></script>
-<script src="js/app.js?v=2026-11-26b"></script>
+<script src="js/config.js?v=2026-11-26c"></script>
+<script src="js/calc.js?v=2026-11-26c"></script>
+<script src="js/dados.js?v=2026-11-26c"></script>
+<script src="js/modelo.js?v=2026-11-26c"></script>
+<script src="js/telas.js?v=2026-11-26c"></script>
+<script src="js/app.js?v=2026-11-26c"></script>
 </body>
 </html>

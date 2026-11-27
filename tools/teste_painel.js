@@ -66,6 +66,7 @@ const ponte = JSON.stringify({ ok: true, versao: "teste", fontes: {
   compras: F(["FECHA", "PROPRIETARIO", "DEPARTAMENTO", "ESTABLECIMENTO DE DESTINO", "FECHA DE CHEGADA EN LA ESTANCIA", "STATUS", "@antes:CANTIDAD TOTAL", "CANTIDAD TOTAL", "CATEGORIA", "PRECIO LIQUIDADO", "PESO PROMEDIO POR CABEZA SIN DESBASTE", "PESO PROMEDIO POR CABEZA  BASCULA", "DESBASTE", "COSTO POR ANIMAL", "COSTO KG COMPRA", "COSTO KG ESTANCIA", "COSTO FLETE POR ANIMAL", "COSTO COMISIÓN POR ANIMAL", "COSTOS TOTAL POR CABEZA (PYG)", "CAMBIO DEL DIA", "COSTOS TOTAL POR KILO (PYG - con desbaste)", "VALOR AGRO - NOVILLO DEL DIA (US)", "AGIO PRECIO VENTA", "RAZA"], compras),
   resultados: F(["LOTE", "CATEGORIA", "RAZA", "ESTABLECIMENTO", "SAFRA", "DATA INICIAL", "PESO", "DATA FINAL", "PESO SAÍDA", "PESO CARCAZA", "GMD", "Quantidade Abatida", "Dias de cocho", "Rend. Inicial", "Rend. Final", "CMS Médio Kg/cab/dia", "CMS % P.V.", "Kg de carcaça produzidos", "U$/Cab. Entrada", "U$/diaria (dieta +  operacional)", "U$/dia Alimento", "Custo/Kg Prod.", "Custo Conf.", "Custo Total U$/cab.", "Preço Venda U$/@", "Receita total", "Lucro/cab Conf.", "Lucro/cab Total", "Ganho em Carcaça", "Frigorifico", "Valor da diária", "Boitel", "Sistema"], result),
   milho_entregas: F(["FECHA RECIBIDA EN YPOTI", "FECHA DE REMISION", "PRODUCTO", "COSTO ACTUAL DE MERCADO USD/TON", "CONTRATO USD/TON", "CAMBIO DEL DIA", "CONTRATO GS/TON", "MONEDA", "CANTIDAD S/ REMISION EN KG", "COSTO DEL FLETE USD", "COSTO TON + FLETE USD + DESCARGA (FEED MANAGER)"], milho),
+  cambio_bcp: F(["data", "hora_corte", "compra_corte", "venda_corte", "compra_acumulado", "venda_acumulado", "corte_sem_negocios", "origem", "capturado_em"], require("./cambio_exemplo.json")),
   milho_contratos: F(["ANO", "FECHA", "PRODUCTO", "CANTIDAD", "CAMBIO          Gs/$", "PRECIO USD/TON", "PRECIO Gs/TON", "ESTADO DEL CONTRATO", "FLETE A CARGO DE"], [[2026, "2026-06-10", "MAIZ SECO", 3000, "USD", 140, null, "ABIERTO", "VENDEDOR"]]) } });
 
 const tipos = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".woff2": "font/woff2", ".ico": "image/x-icon" };
@@ -93,14 +94,15 @@ const srv = http.createServer((q, r) => { let p = decodeURIComponent(q.url.split
   await pg.goto("http://localhost:8765/" + q, { waitUntil: "load" });
   await pg.clock.runFor(4000).catch(() => {}); await pg.waitForTimeout(2500);
   const suf = (semPonte ? "-semponte" : "") + (movel ? "-movel" : "");
-  for (const [i, t] of ["gordo", "reposicao", "lucro"].entries()) {
+  for (const [i, t] of ["gordo", "reposicao", "lucro", "cambio"].entries()) {
     await pg.keyboard.press(String(i + 1)); await pg.clock.runFor(3500).catch(() => {}); await pg.waitForTimeout(2600);
     await pg.screenshot({ path: SAIDA + "/" + t + suf + ".png", fullPage: movel });
   }
   if (!movel && !semPonte) { await pg.keyboard.press("c"); await pg.clock.runFor(1500).catch(() => {}); await pg.waitForTimeout(900); await pg.screenshot({ path: SAIDA + "/config.png" }); await pg.keyboard.press("Escape"); }
   const resumo = await pg.evaluate(() => { const M = window.MercadoBoi.modelo; if (!M) return null; const A = M.lucro.atual;
     return { pyHoje: M.boi.pyHoje, vendaHoje: M.boi.vendaHoje, basisHoje: M.boi.basisHoje, curva0: M.boi.curva[0], milho0: M.milho.curva[0], sazBoiNov: M.boi.saz[10], sazMilhoJan: M.milho.saz[0],
-      repo: M.repo.u && { m180: M.repo.u.m180, beta: M.repo.u.beta }, desvio: M.repo.desvioRec, nRec: M.repo.nRec, agio: M.repo.agioHoje, lucro: A.global.lucro, tir: A.global.tir, pHoje: M.lucro.pHoje, n: M.lucro.serie.length,
+      repo: M.repo.u && { m180: M.repo.u.m180, beta: M.repo.u.beta }, desvio: M.repo.desvioRec, nRec: M.repo.nRec, agio: M.repo.agioHoje, lucro: A.global.lucro, tir: A.global.tir, cambioHoje: M.lucro.pHoje.cambio, n: M.lucro.serie.length,
+      cx: M.cambio && { n: M.cambio.dias.length, ult: M.cambio.ult, ref: M.cambio.ref, sinal: M.cambio.sinal, desde: M.cambio.desde, ifr: M.cambio.ifr.slice(-1)[0], melhor: M.cambio.melhor, pv: M.cambio.pv.slice(-4), res: M.cambio.resistencia, sup: M.cambio.suporte, aberto: M.cambio.aberto, mom60: M.cambio.mom60, spreadHora: M.cambio.spreadHora.map(x=>x.h+':'+x.med.toFixed(0)).join(' ') },
       estado: Object.fromEntries(Object.entries(window.Dados.estado).map(([k, v]) => [k, v.estado + " " + v.nota])), rolagem: document.documentElement.scrollWidth > innerWidth }; });
   console.log(JSON.stringify(resumo, null, 1)); console.log("ERROS:", erros.length ? erros.join("\n") : "nenhum");
   await nav.close(); srv.close();

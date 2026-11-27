@@ -1,8 +1,8 @@
 # Ponte de dados (Google Apps Script)
 
 O painel roda no GitHub Pages e lê sozinho o que é público (Valor Agro, indicador de reposição, B3 e câmbio).
-As três planilhas internas — **COMPRAS DE DESMAMANTES**, **RESULTADOS CONFINAMENTO** e **CONTROL DE MATERIAS PRIMAS** —
-são privadas, e um site estático não consegue abri-las. Este script faz a ponte: roda na conta Google de quem o
+As planilhas internas — **COMPRAS DE DESMAMANTES**, **RESULTADOS CONFINAMENTO**, **CONTROL DE MATERIAS PRIMAS** e
+**Câmbio BCP USD-PYG intradiário** — são privadas, e um site estático não consegue abri-las. Este script faz a ponte: roda na conta Google de quem o
 implanta, lê só as colunas necessárias e devolve JSON protegido por uma chave. Nomes de fornecedores, facturas,
 guías e links **não** são enviados.
 
@@ -16,8 +16,8 @@ guías e links **não** são enviados.
    *Registro de execução* aparece a **chave de acesso** e, para cada planilha, quantas linhas foram lidas.
 4. **Implantar › Nova implantação › App da Web**. *Executar como:* **Eu**. *Quem pode acessar:* **Qualquer pessoa**. Copie a URL que termina em `/exec`.
 5. No painel, tecla **C** (Configurações) › *Dados da Ypoti*: cole a URL e a chave e clique em **Salvar e atualizar**.
-   Para não repetir em cada aparelho, abra uma vez `…/mercado-boi/?ponte=<URL>&k=<chave>`: a página guarda os dois
-   no navegador e limpa a barra de endereço.
+   Para não digitar em cada aparelho, abra uma vez `…/mercado-boi/#k=<chave>`: a página guarda a chave no navegador e limpa a
+   barra de endereço (o que vem depois do `#` não sai do navegador).
 
 A URL pode ficar gravada em `js/config.js` (campo `ponte`) — ela não é segredo. A **chave não vai para o repositório**.
 
@@ -33,4 +33,7 @@ Executar a função **trocarChave** e informar a nova chave nas configurações 
 ## Teste rápido
 
 `<URL>?k=<chave>&ping=1` responde `{"ok":true,"versao":"…","fontes":[…]}`. Sem a chave: `{"ok":false,"erro":"chave"}`.
-As leituras ficam 15 minutos em cache; `&fresco=1` força ler de novo.
+As leituras ficam 15 minutos em cache (o câmbio, 1 minuto); `&fresco=1` força ler de novo.
+
+O script lê pela API do Sheets (serviço avançado **Sheets**, ligado no manifesto) porque ela aceita o escopo de **somente leitura**;
+`SpreadsheetApp.openById` exigiria acesso total às planilhas.

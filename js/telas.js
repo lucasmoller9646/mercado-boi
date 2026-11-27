@@ -92,6 +92,7 @@
     const el = document.getElementById(id);
     el.innerHTML = itens.map((k) => {
       const d = k.delta != null && isFinite(k.delta) ? '<i class="delta ' + (k.delta > 0 ? "sobe" : k.delta < 0 ? "desce" : "") + (k.neutro ? " neutro" : "") + '">' + (k.delta > 0 ? "▲" : k.delta < 0 ? "▼" : "•") + " " + k.deltaTxt + "</i> " : "";
+      if (k.texto != null) return '<div class="kpi vidro' + (k.destaque ? " destaque" : "") + '"><span class="r">' + k.rotulo + '</span><b class="v texto">' + k.texto + '</b><span class="nt">' + (k.nota || "") + "</span></div>";
       return '<div class="kpi vidro' + (k.destaque ? " destaque" : "") + '"><span class="r">' + k.rotulo + '</span><b class="v"><span class="num" data-v="' + (k.valor == null ? "" : k.valor) + '" data-d="' + (k.dec || 0) + '" data-p="' + (k.pct ? 1 : 0) + '" data-s="' + (k.sinal ? 1 : 0) + '">' +
         (k.pct ? F.pct(k.valor, k.dec, k.sinal) : (k.sinal && k.valor > 0 ? "+" : "") + F.n(k.valor, k.dec)) + "</span>" + (k.un ? "<small>" + k.un + "</small>" : "") + '</b><span class="nt">' + d + (k.nota || "") + "</span></div>";
     }).join("");
@@ -119,7 +120,7 @@
       { rotulo: "Boi gordo B3 · " + (f ? f.cod : "BGI"), valor: f ? f.reais : null, dec: 2, un: "R$/@", nota: f && f.usd ? "US$ " + F.n(f.usd, 2) + "/kg · Paraguai " + F.n(f.pyMin, 2) + " a " + F.n(f.pyMax, 2) : "" },
       { rotulo: "Milho B3 · " + (fm ? fm.cod : "CCM"), valor: fm ? fm.reais : null, dec: 2, un: "R$/saca", nota: fm && fm.usd ? "US$ " + F.n(fm.usd, 0) + "/t · Paraguai " + F.n(fm.pyMin, 0) + " a " + F.n(fm.pyMax, 0) : "" },
       { rotulo: "Nosso milho", valor: m.milhoHoje, dec: 0, un: "US$/t", destaque: true, nota: m.milhoHoje != null ? (m.basisNosso != null ? "basis " + F.n(m.basisNosso, 0) + " · " : "") + m.milhoRef : "aguardando dados da Ypoti" },
-      { rotulo: "Dólar", valor: M.fx.brl, dec: 3, un: "R$", nota: M.fx.pyg ? "Gs " + F.n(M.fx.pyg, 0) : "" },
+      { rotulo: "Dólar", valor: M.fx.brl, dec: 3, un: "R$", nota: M.fx.pyg ? "Gs " + F.n(M.fx.pyg, 0) + (M.cambio ? " · BCP" : "") : "" },
     ]);
 
     // ---- série do novillo
@@ -379,5 +380,117 @@
       " Preço do gordo: " + L.vendaRef + ". Meses sem abate na série são interpolados.</p>";
   }
 
-  window.Telas = { F, COR, telaGordo, telaReposicao, telaLucro, reanimar, redimensionar, contar };
+  // ================================================================== TELA 4 — câmbio (BCP) e análise técnica
+  function telaCambio(M) {
+    const X = M.cambio, r = rem(), semDados = "Aguardando o câmbio do BCP (ponte de dados não conectada).";
+    const ids = ["g-cambio-hist", "g-cambio-hoje", "g-cambio-spread", "g-cambio-ifr"];
+    if (!X) {
+      kpis("kpis-cambio", [{ rotulo: "Dólar BCP", valor: null, nota: "aguardando dados" }]);
+      ids.forEach((id) => desenhar(id, null, semDados)); document.getElementById("tecnica-cambio").innerHTML = '<p class="vazio">' + semDados + "</p>"; return;
+    }
+    const u = X.ult, n = X.dias.length, g0 = (v) => F.n(v, 0), g2 = (v) => F.n(v, 2), dm = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+    const ifrHoje = X.ifr[n - 1], viva = X.aberto ? '<i class="luz-viva"></i>' : "";
+    kpis("kpis-cambio", [
+      { rotulo: viva + "Compra · BCP", valor: u.compra, dec: 2, un: "Gs/US$", destaque: true, nota: u.h + " · " + dm(X.hoje.d) + (X.aberto ? " · mercado aberto" : " · fechado") },
+      { rotulo: viva + "Venda · BCP", valor: u.venda, dec: 2, un: "Gs/US$", destaque: true, nota: "média do dia " + g2(X.ref) },
+      { rotulo: "Spread compra–venda", valor: u.spread, dec: 0, un: "bps", nota: "mediana de 30 dias: " + F.n(X.spread30, 0) + " bps" },
+      { rotulo: "Dólar no dia", valor: X.varDia, pct: true, dec: 2, sinal: true, neutro: true, delta: X.varDia, deltaTxt: X.ontem ? "contra " + g2(X.ontem.c) + " de ontem" : "", nota: "" },
+      { rotulo: "Tendência · médias 10/50", texto: X.sinal ? (X.sinal === "alta" ? "Dólar em alta" : "Dólar em baixa") : "–", nota: X.desde ? "desde " + dm(X.desde) + " · 60 dias " + F.pct(X.mom60, 1, true) : "faltam dias para a média de 50" },
+      { rotulo: "Força relativa · IFR 14", valor: ifrHoje, dec: 0, nota: ifrHoje == null ? "" : ifrHoje >= 70 ? "sobrecomprado (acima de 70)" : ifrHoje <= 30 ? "sobrevendido (abaixo de 30)" : "zona neutra (entre 30 e 70)" },
+      { rotulo: "Horário de menor spread", texto: X.melhor ? X.melhor.h : "–", nota: X.melhor ? "mediana de " + F.n(X.melhor.med, 0) + " bps em 60 pregões" : "" },
+    ]);
+
+    // ---- histórico em velas, médias, picos e vales
+    const datas = X.dias.map((x) => dm(x.d)), conf = X.pv;
+    const marca = (tipo) => conf.filter((p) => p.tipo === tipo).map((p) => ({ value: [p.i, +p.v.toFixed(1)], confirmado: p.confirmado }));
+    desenhar("g-cambio-hist", base({
+      grid: { left: r * 0.4, right: r * 4.2, top: r * 2.6, bottom: r * 0.3, containLabel: true },
+      legend: Object.assign(base().legend, { data: ["Dólar (vela do dia)", "Média de 10 dias", "Média de 50 dias", "Picos", "Vales"] }),
+      xAxis: eixoX({ type: "category", data: datas, boundaryGap: true, axisLabel: { color: COR.t3, fontSize: r * 0.76, hideOverlap: true, interval: Math.max(0, Math.floor(n / 12) - 1) } }),
+      yAxis: eixoY(g0, { min: (v) => Math.floor((v.min - (v.max - v.min) * 0.09) / 50) * 50, max: (v) => Math.ceil((v.max + (v.max - v.min) * 0.09) / 50) * 50 }),
+      tooltip: Object.assign(base().tooltip, { formatter: (ps) => { const i = ps[0].dataIndex, x = X.dias[i];
+        return "<b>" + F.dia(x.d) + "</b><br>abertura " + g2(x.o) + " · máxima " + g2(x.h) + "<br>mínima " + g2(x.l) + " · fechamento " + g2(x.c) + "<br>compra " + g2(x.compra) + " · venda " + g2(x.venda) +
+          (X.m10[i] != null ? "<br>média 10: " + g2(X.m10[i]) : "") + (X.m50[i] != null ? " · média 50: " + g2(X.m50[i]) : "") + (X.ifr[i] != null ? "<br>IFR 14: " + F.n(X.ifr[i], 0) : ""); } }),
+      series: [
+        { name: "Dólar (vela do dia)", type: "candlestick", data: X.dias.map((x) => [+x.o.toFixed(1), +x.c.toFixed(1), +x.l.toFixed(1), +x.h.toFixed(1)]), barMaxWidth: r * 0.55,
+          itemStyle: { color: COR.bom, color0: COR.ruim, borderColor: COR.bom, borderColor0: COR.ruim },
+          markLine: { silent: true, symbol: "none", data: [X.resistencia ? { yAxis: +X.resistencia.toFixed(1), name: "Resistência" } : null, X.suporte ? { yAxis: +X.suporte.toFixed(1), name: "Suporte" } : null].filter(Boolean),
+            lineStyle: { color: COR.t2, type: "dashed", width: 1.2 }, label: { formatter: (q) => q.name + " " + F.n(q.value, 0), color: COR.tinta, fontSize: r * 0.76, position: "insideStartTop", backgroundColor: "rgba(6,19,12,.55)", padding: [2, 4], borderRadius: 4 } } },
+        linha("Média de 10 dias", X.m10.map((v) => (v == null ? null : +v.toFixed(1))), COR.amarelo, Object.assign({ connectNulls: false }, rotuloFim(g0, COR.amarelo))),
+        linha("Média de 50 dias", X.m50.map((v) => (v == null ? null : +v.toFixed(1))), COR.violeta, Object.assign({ connectNulls: false }, rotuloFim(g0, COR.violeta))),
+        { name: "_zz", type: "line", data: conf.map((p) => [p.i, +p.v.toFixed(1)]), symbol: "none", lineStyle: { color: COR.t3, width: 1, type: "dotted" }, silent: true, tooltip: { show: false }, z: 1 },
+        { name: "Picos", type: "scatter", data: marca("pico"), symbol: "triangle", symbolRotate: 180, symbolSize: r * 0.8, symbolOffset: [0, -r * 0.75], itemStyle: { color: COR.magenta, borderColor: "#06130C", borderWidth: 1 }, z: 6, tooltip: { show: false },
+          label: { show: true, position: "top", distance: r * 0.9, formatter: (q) => F.n(q.value[1], 0), color: COR.tinta, fontSize: r * 0.74, fontWeight: 600 }, labelLayout: { hideOverlap: true } },
+        { name: "Vales", type: "scatter", data: marca("vale"), symbol: "triangle", symbolSize: r * 0.8, symbolOffset: [0, r * 0.75], itemStyle: { color: COR.py, borderColor: "#06130C", borderWidth: 1 }, z: 6, tooltip: { show: false },
+          label: { show: true, position: "bottom", distance: r * 0.9, formatter: (q) => F.n(q.value[1], 0), color: COR.tinta, fontSize: r * 0.74, fontWeight: 600 }, labelLayout: { hideOverlap: true } },
+      ],
+    }));
+
+    // ---- o dia, corte a corte
+    const cortes = ["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"];
+    const noCorte = (dia, campo) => cortes.map((h) => { const c = dia && dia.cortes.find((x) => x.h === h && !x.semNeg); return c ? +c[campo].toFixed(2) : null; });
+    desenhar("g-cambio-hoje", base({
+      xAxis: eixoX({ type: "category", data: cortes, boundaryGap: false }), yAxis: eixoY(g0),
+      tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : "Gs " + g2(v)) }),
+      legend: Object.assign(base().legend, { data: ["Compra", "Venda", "Médio de ontem"] }),
+      series: [linha("Compra", noCorte(X.hoje, "compra"), COR.py, Object.assign({ showSymbol: true, connectNulls: false }, rotuloFim(g0, COR.py))),
+        linha("Venda", noCorte(X.hoje, "venda"), COR.magenta, Object.assign({ showSymbol: true, connectNulls: false }, rotuloFim(g0, COR.magenta))),
+        linha("Médio de ontem", noCorte(X.ontem, "medio"), COR.t2, { lineStyle: { width: 1.5, color: COR.t2, type: "dashed" }, connectNulls: false })],
+    }));
+
+    // ---- diferença entre compra e venda por horário
+    desenhar("g-cambio-spread", X.spreadHora.length ? base({
+      grid: { left: r * 0.4, right: r * 0.8, top: r * 0.8, bottom: r * 0.3, containLabel: true }, legend: { show: false },
+      xAxis: eixoX({ type: "category", data: X.spreadHora.map((x) => x.h) }), yAxis: eixoY(g0, { scale: false }),
+      tooltip: Object.assign(base().tooltip, { axisPointer: { type: "shadow", shadowStyle: { color: "rgba(255,255,255,.05)" } }, formatter: (ps) => { const x = X.spreadHora[ps[0].dataIndex];
+        return "<b>" + x.h + "</b><br>diferença mediana: " + F.n(x.med, 0) + " bps<br>" + F.n(x.n, 0) + " cortes com negócio nos últimos 60 pregões"; } }),
+      series: [{ type: "bar", name: "Diferença mediana", barMaxWidth: r * 2.2, itemStyle: { color: COR.py, borderRadius: [4, 4, 0, 0] }, data: X.spreadHora.map((x) => +x.med.toFixed(1)),
+        label: { show: true, position: "top", color: COR.tinta, fontSize: r * 0.76, fontWeight: 600, formatter: (q) => F.n(q.value, 0) } }],
+    }) : null, semDados);
+
+    // ---- força relativa
+    desenhar("g-cambio-ifr", base({
+      grid: { left: r * 0.4, right: r * 3.2, top: r * 0.8, bottom: r * 0.3, containLabel: true }, legend: { show: false },
+      xAxis: eixoX({ type: "category", data: datas, boundaryGap: false, axisLabel: { color: COR.t3, fontSize: r * 0.76, hideOverlap: true, interval: Math.max(0, Math.floor(n / 6) - 1) } }),
+      yAxis: eixoY(g0, { scale: false, min: 0, max: 100, interval: 10, axisLabel: { color: COR.t3, fontSize: r * 0.76, formatter: (v) => (v === 30 || v === 50 || v === 70 || v === 0 || v === 100 ? v : "") }, splitLine: { show: false } }),
+      tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : F.n(v, 0)) }),
+      series: [linha("IFR 14", X.ifr.map((v) => (v == null ? null : +v.toFixed(1))), COR.br, Object.assign({ connectNulls: false,
+        markLine: { silent: true, symbol: "none", data: [{ yAxis: 70 }, { yAxis: 30 }], lineStyle: { color: COR.t3, type: "dashed", width: 1 }, label: { show: false } },
+        markArea: { silent: true, itemStyle: { color: "rgba(234,242,236,.06)" }, data: [[{ yAxis: 30 }, { yAxis: 70 }]] } }, rotuloFim(g0, COR.br)))],
+    }));
+
+    // ---- leitura técnica e últimos picos e vales
+    const ult8 = X.pv.slice(-5), dist = (nivel) => (nivel ? F.pct(nivel / u.medio - 1, 1, true) : "–");
+    const linhasPv = ult8.map((p, k) => { const ant = k > 0 ? ult8[k - 1] : X.pv[X.pv.length - ult8.length - 1];
+      return "<tr><th>" + (p.tipo === "pico" ? '<i class="tri pico"></i>Pico' : '<i class="tri vale"></i>Vale') + (p.confirmado ? "" : " <span class='apagado'>(em formação)</span>") + "</th><td>" + dm(X.dias[p.i].d) + "</td><td>" + g0(p.v) +
+        "</td><td>" + (ant ? F.pct(p.v / ant.v - 1, 1, true) : "–") + "</td><td>" + (ant ? p.i - ant.i : "–") + "</td></tr>"; }).reverse().join("");
+    document.getElementById("tecnica-cambio").innerHTML =
+      '<table class="conta"><thead><tr><th>Leitura de hoje</th><th></th></tr></thead><tbody>' +
+      "<tr><th>Tendência pelas médias de 10 e 50 dias</th><td>" + (X.sinal ? (X.sinal === "alta" ? "dólar em alta" : "dólar em baixa") + (X.desde ? " desde " + dm(X.desde) : "") : "–") + "</td></tr>" +
+      "<tr><th>Média de 10 · média de 50</th><td>" + g0(X.m10[n - 1]) + " · " + g0(X.m50[n - 1]) + "</td></tr>" +
+      "<tr><th>Variação em 20 e em 60 pregões</th><td>" + F.pct(X.mom20, 1, true) + " · " + F.pct(X.mom60, 1, true) + "</td></tr>" +
+      "<tr><th>Resistência (último pico confirmado)</th><td>" + g0(X.resistencia) + " <span class='apagado'>" + dist(X.resistencia) + "</span></td></tr>" +
+      "<tr><th>Suporte (último vale confirmado)</th><td>" + g0(X.suporte) + " <span class='apagado'>" + dist(X.suporte) + "</span></td></tr>" +
+      "<tr><th>Máxima e mínima desde " + dm(X.dias[0].d) + "</th><td>" + g0(X.max) + " · " + g0(X.min) + "</td></tr>" +
+      "</tbody></table>" +
+      '<table class="conta premissas"><thead><tr><th>Picos e vales</th><th>Data</th><th>Gs/US$</th><th>Variação</th><th>Pregões</th></tr></thead><tbody>' + linhasPv + "</tbody></table>" +
+      '<p class="nota-conta">Velas, médias e IFR sobre o preço médio entre compra e venda de cada corte do BCP (mercado flutuante com clientes não financeiros), desde ' + F.dia(X.dias[0].d) +
+      ". Pico ou vale confirmado após reversão de " + F.pct(M.S.limiarPivo || 0.02, 1) + ". No estudo do câmbio, valor mesmo tiveram a tendência (médias) e o horário da conversão; osciladores como o IFR não funcionaram neste par.</p>";
+  }
+
+  /** Pílula do topo: câmbio ao vivo, em todas as telas. */
+  function pilulaCambio(M) {
+    const el = document.getElementById("pilula-cambio"); if (!el) return;
+    const X = M.cambio;
+    if (!X) { el.hidden = !M.fx.pyg; el.innerHTML = M.fx.pyg ? "<span>US$</span><b>" + F.n(M.fx.pyg, 0) + "</b>" : ""; el.classList.remove("vivo"); return; }
+    el.hidden = false; el.classList.toggle("vivo", X.aberto);
+    el.innerHTML = '<i class="luz-viva"></i><span>Gs/US$</span><b>' + F.n(X.ult.compra, 0) + '</b><span class="sep">·</span><b>' + F.n(X.ult.venda, 0) + "</b><span>" + X.ult.h + "</span>";
+    el.title = "Câmbio BCP: compra · venda no corte das " + X.ult.h;
+  }
+  /** Pisca os números do câmbio quando chega um corte novo. */
+  function piscar(subiu) {
+    document.querySelectorAll("#pilula-cambio, #kpis-cambio .kpi.destaque").forEach((el) => { el.classList.remove("piscou-alta", "piscou-baixa"); void el.offsetWidth; el.classList.add(subiu ? "piscou-alta" : "piscou-baixa"); });
+  }
+
+  window.Telas = { F, COR, telaGordo, telaReposicao, telaLucro, telaCambio, pilulaCambio, piscar, reanimar, redimensionar, contar };
 })();

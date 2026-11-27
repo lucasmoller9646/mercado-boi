@@ -127,7 +127,7 @@
       const [hp, hb] = await Promise.allSettled([hist("USD-PYG", 3000), hist("USD-BRL", 400)]);
       if (hp.status === "fulfilled") out.histPyg = hp.value;
       if (hb.status === "fulfilled") out.histBrl = hb.value;
-      marca("cambio", out.brl ? "ok" : "erro", out.brl ? "R$ " + out.brl.toFixed(3) + " · Gs " + Math.round(out.pyg) : "");
+      marca("cambio", out.brl ? "ok" : "erro", out.brl ? "R$ " + out.brl.toFixed(3).replace(".", ",") : "");
     } catch (e) { marca("cambio", "erro", String(e.message || e)); }
     return out;
   }
@@ -139,14 +139,40 @@
     return { linhas: f.linhas, c: (nome) => pos[nome] };
   }
 
+  /** Câmbio BCP (cortes de 30 min): devolve [{d, h, compra, venda, compraAc, vendaAc, semNeg}] em ordem. */
+  function lerCambio(f) {
+    const t = tabela(f); if (!t) return [];
+    const hora = (v) => { if (v == null) return null; if (typeof v === "number") { const m = Math.round(v * 1440); return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); }
+      const m = /(\d{1,2}):(\d{2})/.exec(String(v)); return m ? m[1].padStart(2, "0") + ":" + m[2] : null; };
+    const out = [];
+    for (const l of t.linhas) {
+      const d = C.data(l[t.c("data")]), h = hora(l[t.c("hora_corte")]), compra = C.num(l[t.c("compra_corte")], "es"), venda = C.num(l[t.c("venda_corte")], "es");
+      if (!d || !h || !(compra > 1000) || !(venda > 1000)) continue;
+      out.push({ d, h, compra, venda, compraAc: C.num(l[t.c("compra_acumulado")], "es"), vendaAc: C.num(l[t.c("venda_acumulado")], "es"), semNeg: /^S/i.test(String(l[t.c("corte_sem_negocios")] || "")) });
+    }
+    out.sort((x, y) => (x.d + x.h < y.d + y.h ? -1 : 1));
+    return out;
+  }
+  /** Só o câmbio (leve): usado na atualização rápida enquanto o mercado está aberto. */
+  async function cambioBcp(url, chave) {
+    if (!url) return null;
+    try {
+      const j = await pegar(url + (url.indexOf("?") < 0 ? "?" : "&") + "fonte=cambio_bcp&k=" + encodeURIComponent(chave || ""), "json", 45000);
+      if (!j.ok) return null;
+      const linhas = lerCambio(j.fontes.cambio_bcp);
+      if (linhas.length) marca("bcp", "ok", "corte de " + linhas[linhas.length - 1].h + " · " + linhas[linhas.length - 1].d.slice(8) + "/" + linhas[linhas.length - 1].d.slice(5, 7));
+      return linhas.length ? linhas : null;
+    } catch (e) { return null; }
+  }
+
   async function ypoti(url, chave) {
-    const vazio = { compras: [], vendas: [], milho: [], contratosMilho: [], ligado: false };
-    if (!url) { marca("ypoti", "desligado", "ponte não configurada"); return vazio; }
+    const vazio = { compras: [], vendas: [], milho: [], contratosMilho: [], cambioBcp: [], ligado: false };
+    if (!url) { marca("ypoti", "desligado", "ponte não configurada"); marca("bcp", "desligado", "ponte não configurada"); return vazio; }
     marca("ypoti", "atualizando");
     try {
       const j = await pegar(url + (url.indexOf("?") < 0 ? "?" : "&") + "k=" + encodeURIComponent(chave || ""), "json", 90000);
       if (!j.ok) throw new Error(j.erro === "chave" ? "chave de acesso incorreta" : (j.mensagem || "erro na ponte"));
-      const out = { compras: [], vendas: [], milho: [], contratosMilho: [], ligado: true };
+      const out = { compras: [], vendas: [], milho: [], contratosMilho: [], cambioBcp: [], ligado: true };
       const avisos = [];
 
       // ---- compras de reposição (planilha em formato es: 1.234.567,89 quando vier como texto)
@@ -207,11 +233,14 @@
         }
         out.contratosMilho.sort((a, b) => (a.d < b.d ? -1 : 1));
       }
+      out.cambioBcp = lerCambio(j.fontes.cambio_bcp);
+      const uc = out.cambioBcp[out.cambioBcp.length - 1];
+      marca("bcp", uc ? "ok" : "erro", uc ? "corte de " + uc.h + " · " + uc.d.slice(8) + "/" + uc.d.slice(5, 7) : "planilha do câmbio não respondeu");
       marca("ypoti", avisos.length ? "desatualizado" : "ok", avisos.length ? "sem: " + avisos.join(", ") :
         out.vendas.length + " lotes · " + out.compras.length + " compras");
       return out;
-    } catch (e) { marca("ypoti", "erro", String(e.message || e)); return vazio; }
+    } catch (e) { marca("ypoti", "erro", String(e.message || e)); marca("bcp", "erro", "ponte fora do ar"); return vazio; }
   }
 
-  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti };
+  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp };
 })();

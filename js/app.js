@@ -2,19 +2,20 @@
 (function () {
   "use strict";
   const CFG = window.MB_CONFIG, C = window.Calc, T = window.Telas;
-  const TELAS = ["gordo", "reposicao", "lucro"];
-  const DESENHO = { gordo: T.telaGordo, reposicao: T.telaReposicao, lucro: T.telaLucro };
+  const TELAS = ["gordo", "reposicao", "lucro", "cambio"];
+  const DESENHO = { gordo: T.telaGordo, reposicao: T.telaReposicao, lucro: T.telaLucro, cambio: T.telaCambio };
   const $ = (id) => document.getElementById(id);
   const guarda = { ler(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, gravar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento: vale só nesta sessão */ } } };
 
   // ------------------------------------------------------------------ configurações
   let S = Object.assign({}, CFG.padroes, { ponte: CFG.ponte, chave: "", efeitos: "completos", params: {} }, guarda.ler("mb:cfg") || {});
   (function daUrl() { // ?rotacao=45&tela=reposicao&ponte=...&k=... (a chave sai da barra de endereço depois de guardada)
-    const q = new URLSearchParams(location.search); let mudou = false;
+    const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.replace(/^#/, "")); let mudou = false;
+    for (const k of ["k", "ponte"]) if (h.has(k)) { q.set(k, h.get(k)); h.delete(k); }
     if (q.has("rotacao")) { S.rotacao = Math.max(0, +q.get("rotacao") || 0); mudou = true; }
     if (q.has("ponte")) { S.ponte = q.get("ponte"); mudou = true; }
     if (q.has("k")) { S.chave = q.get("k"); mudou = true; }
-    if (mudou) { guarda.gravar("mb:cfg", S); if (q.has("k") || q.has("ponte")) { q.delete("k"); q.delete("ponte"); history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash); } }
+    if (mudou) { guarda.gravar("mb:cfg", S); if (q.has("k") || q.has("ponte")) { q.delete("k"); q.delete("ponte"); history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + (h.toString() ? "#" + h : "")); } }
   })();
 
   const CAMPOS = [
@@ -34,6 +35,7 @@
       { k: "basisAnosBoi", r: "Anos no basis do boi (0 = desde 2015)", passo: 1, min: 0 }, { k: "basisAnosMilho", r: "Anos no basis do milho (0 = desde 2019)", passo: 1, min: 0 },
       { k: "rcVivo", r: "Rendimento do gordo para o ágio", passo: 0.01 }, { k: "semanasNuvem", r: "Semanas de leilão na nuvem α + β", passo: 1, min: 2 },
       { k: "diasCompras", r: "Dias das nossas compras em destaque", passo: 15, min: 15 },
+      { k: "limiarPivo", r: "Reversão que confirma pico ou vale do câmbio", passo: 0.005, min: 0.005 },
     ] },
     { grupo: "Lucratividade — o que varia", itens: [
       { k: "indicadores", r: "Indicadores do confinamento", largo: true, op: [["realizado", "Realizado (Resultados do Confinamento)"], ["fixo", "Fixos da planilha"]] },
@@ -67,7 +69,7 @@
         ' value="' + String(v == null ? "" : v).replace(/"/g, "&quot;") + '"' + (c.texto ? ' spellcheck="false"' : "") + ">";
       return '<label class="campo' + (c.largo ? " largo" : "") + '" for="' + id + '">' + c.r + ctl + "</label>";
     }).join("") + "</div></fieldset>").join("") +
-      '<p class="atalhos"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> telas · <kbd>←</kbd> <kbd>→</kbd> anterior e próxima · <kbd>R</kbd> liga ou desliga a rotação · <kbd>F</kbd> tela cheia · <kbd>C</kbd> configurações. ' +
+      '<p class="atalhos"><kbd>1</kbd> a <kbd>4</kbd> telas · <kbd>←</kbd> <kbd>→</kbd> anterior e próxima · <kbd>R</kbd> liga ou desliga a rotação · <kbd>F</kbd> tela cheia · <kbd>C</kbd> configurações. ' +
       "Para abrir já girando: acrescente <b>?rotacao=45</b> ao endereço.</p>";
   }
   function lerFormulario() {
@@ -93,7 +95,7 @@
   if (atual < 0) atual = 0;
 
   function cards() {
-    const nomes = { gordo: "Valor Agro", reposicao: "Reposição", b3: "B3", cambio: "Câmbio", ypoti: "Ypoti" };
+    const nomes = { gordo: "Valor Agro", reposicao: "Reposição", b3: "B3", cambio: "Câmbio R$", bcp: "Câmbio BCP", ypoti: "Ypoti" };
     $("cards").innerHTML = Object.keys(nomes).map((k) => { const e = window.Dados.estado[k] || { estado: "atualizando", nota: "" };
       return '<span class="card" data-estado="' + e.estado + '" title="' + String(e.nota).replace(/"/g, "&quot;") + '"><i class="luz"></i><b>' + nomes[k] + "</b>" + (e.nota ? "<span>" + e.nota + "</span>" : "") + "</span>"; }).join("");
   }
@@ -108,6 +110,8 @@
       const novo = { anc, gordo, ind, lotes, b3, fx, yp };
       if (D) { if (!gordo.length) novo.gordo = D.gordo; if (!ind.length) novo.ind = D.ind; if (!lotes.length) novo.lotes = D.lotes; if (!b3.bgi.length) novo.b3 = D.b3; if (!fx.brl) novo.fx = D.fx; if (!yp.ligado && D.yp.ligado) novo.yp = D.yp; }
       D = novo; M = window.Modelo.montar(D, S);
+      chaveCambio = M.cambio ? M.cambio.chave : null;
+      T.pilulaCambio(M);
       desenharAtual(false);
       ultimaCarga = Date.now();
       $("versao").textContent = "atualizado " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " · v" + CFG.versao;
@@ -160,7 +164,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.target.closest && e.target.closest("input, select, textarea")) { if (e.key === "Escape") abrirGaveta(false); return; }
     const k = e.key.toLowerCase();
-    if (k === "1" || k === "2" || k === "3") ativar(+k - 1);
+    if (k === "1" || k === "2" || k === "3" || k === "4") ativar(+k - 1);
     else if (k === "arrowright") ativar(atual + 1); else if (k === "arrowleft") ativar(atual - 1);
     else if (k === "c") abrirGaveta(!$("gaveta").classList.contains("aberta"));
     else if (k === "escape") abrirGaveta(false);
@@ -176,9 +180,27 @@
   async function acesa() { try { if (navigator.wakeLock && document.visibilityState === "visible") await navigator.wakeLock.request("screen"); } catch (e) { /* sem permissão: segue */ } }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { acesa(); if (D && Date.now() - ultimaCarga > 5 * 60000) carregar(); } });
 
+  // ------------------------------------------------------------------ câmbio ao vivo: com o mercado aberto, confere a planilha do BCP a cada minuto
+  let chaveCambio = null, olhandoCambio = false;
+  async function vigiarCambio() {
+    if (olhandoCambio || carregando || !D || !S.ponte || document.visibilityState !== "visible") return;
+    const a = window.Modelo.agoraAssuncao();
+    if (!a.util || a.min < 8 * 60 + 25 || a.min > 13 * 60 + 50) { if (M && M.cambio && M.cambio.aberto) { M = window.Modelo.montar(D, S); T.pilulaCambio(M); cards(); } return; }
+    olhandoCambio = true;
+    try {
+      const linhas = await window.Dados.cambioBcp(S.ponte, S.chave);
+      if (linhas) {
+        const antes = M && M.cambio ? M.cambio.ult.medio : null;
+        D.yp.cambioBcp = linhas; M = window.Modelo.montar(D, S); T.pilulaCambio(M); cards();
+        if (M.cambio && M.cambio.chave !== chaveCambio) { chaveCambio = M.cambio.chave; if (TELAS[atual] === "cambio") desenharAtual(false); T.piscar(antes == null || M.cambio.ult.medio >= antes); }
+      }
+    } finally { olhandoCambio = false; }
+  }
+  setInterval(vigiarCambio, 60000);
+
   // ------------------------------------------------------------------ início
   aplicarEfeitos(); relogio(); setInterval(relogio, 20000); mexeu(); acesa();
   ativar(atual, false);
   carregar().then(agendarRotacao);
-  window.MercadoBoi = { get modelo() { return M; }, get dados() { return D; }, get cfg() { return S; }, recarregar: carregar };
+  window.MercadoBoi = { get modelo() { return M; }, get dados() { return D; }, recarregar: carregar, piscar: T.piscar };
 })();

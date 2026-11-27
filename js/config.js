@@ -1,12 +1,12 @@
 /* Mercado do Boi — endereços das fontes e padrões. Nada aqui é segredo (a chave da ponte fica só no navegador). */
 window.MB_CONFIG = {
-  versao: "2026-11-26b",
+  versao: "2026-11-26c",
   planilhas: {
     gordo: { id: "1PSoOOJnJ2IdO6rn8fOx9Q8bTxSao6ioTN1oEbbp_qEs", aba: "Sheet1" },                 // Precios Valor Agro (raspagem diária)
     reposicao: { id: "1_UbGp17HuOGgBG5K1PZ5iEpHH0HApQAf9bCXhYwKB6Y", indicador: "INDICADOR", base: "BASE" }, // Preços de Invernada PY
   },
   // URL do app da Web (Apps Script) que lê as planilhas internas. Vazio = painel só com dados de mercado.
-  ponte: "",
+  ponte: "https://script.google.com/macros/s/AKfycbwEXPbndqKzwWjeixsmZdqk0Q07u_r7-qxFsQwuzc6Dbz72rT3lnpwl6K7wjWj2qsX9/exec",
   b3: "https://cotacao.b3.com.br/mds/api/v1/DerivativeQuotation/",
   cambio: "https://economia.awesomeapi.com.br/json/",
   padroes: {
@@ -21,6 +21,7 @@ window.MB_CONFIG = {
     diasCompras: 90,       // janela das nossas compras em destaque
     lotesPreco: "rural",   // "rural" = só lotes da Rural Bioenergia no preço de venda; "todos"
     indicadores: "realizado", // "realizado" = GMD, custo etc. do mês (Resultados do Confinamento); "fixo" = planilha
+    limiarPivo: 0.02,      // reversão mínima para confirmar um pico ou um vale do câmbio (2 %)
     premioSemDados: 0,     // prêmio sobre o Valor Agro quando não há venda nossa no mês (US$/kg)
   },
 };
