@@ -1,0 +1,26 @@
+# Guarda o Indicador do Boi DATAGRO do dia e atualiza o milho de Chicago (CME) para o painel.
+name: Cotações do painel
+on:
+  schedule:
+    - cron: "17 13-22/3 * * 1-5"   # dias úteis, de 3 em 3 horas (UTC), durante os pregões de Chicago e da B3
+    - cron: "41 1 * * 2-6"         # depois da publicação do Indicador do Boi do dia
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: cotacoes, cancel-in-progress: false }
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Buscar cotações
+        run: python3 tools/atualizar_cotacoes.py
+      - name: Gravar no repositório
+        run: |
+          if git diff --quiet -- data/; then echo "nada mudou"; exit 0; fi
+          git config user.name "robo-cotacoes"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/boi_br_diario.json data/cme_milho.json
+          git commit -m "Cotações: DATAGRO e CME $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push

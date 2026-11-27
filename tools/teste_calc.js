@@ -55,5 +55,13 @@ ok("ifr Wilder", C.ifr(w, 14)[14], 70.46, 2e-3); ok("ifr Wilder +1", C.ifr(w, 14
 const pv = C.picosVales([100, 101, 103, 102, 99, 98, 100, 104, 103.5], 0.02);
 eq("picos e vales", JSON.stringify(pv.map((x) => [x.i, x.tipo, x.confirmado])), '[[0,"vale",true],[2,"pico",true],[5,"vale",true],[7,"pico",false]]');
 ok("mediana", C.mediana([5, 1, 3, null, 9]), 4);
+const wl = C.mqoPond([100, 200, 300, 400], [5, 7, 9, 11], [10, 50, 5, 80]);
+ok("mqo ponderado beta", wl.beta, 0.02); ok("mqo ponderado alfa", wl.alfa, 3);
+eq("mme", JSON.stringify(C.mme([1, 2, 3], 3)), "[1,1.5,2.25]");
+const bb = C.bollinger(Array.from({ length: 20 }, (_, i) => 100 + (i % 2)), 20, 2); ok("bollinger média", bb.media, 100.5); ok("bollinger sup", bb.sup, 101.5);
+const serieT = Array.from({ length: 80 }, (_, i) => 100 * Math.exp(0.001 * i + 0.01 * Math.sin(i)));
+const pj = C.projetar(serieT, 42); eq("projeção pontos", pj.pontos.length, 42);
+eq("projeção ordem das faixas", pj.pontos.every((x) => x.i80 < x.i50 && x.i50 < x.med && x.med < x.s50 && x.s50 < x.s80), true);
+ok("projeção leque cresce com a raiz do tempo", Math.log(pj.pontos[39].s80 / pj.pontos[39].med) / Math.log(pj.pontos[9].s80 / pj.pontos[9].med), 2, 1e-9);
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);

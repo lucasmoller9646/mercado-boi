@@ -29,18 +29,22 @@
       { k: "ponte", r: "Endereço do app da Web", texto: true, largo: true }, { k: "chave", r: "Chave de acesso", texto: true, largo: true, segredo: true },
       { k: "lotesPreco", r: "Lotes usados no preço e nos indicadores", op: [["rural", "Só os da Rural Bioenergia"], ["todos", "Todos os lotes"]] },
       { k: "premioSemDados", r: "Prêmio sobre o Valor Agro sem venda nossa (US$/kg)", passo: 0.05 },
+      { k: "vendaManual", r: "Nosso preço de venda à mão (US$/kg, 0 = planilha)", passo: 0.05, min: 0 },
     ] },
     { grupo: "Basis e reposição", itens: [
       { k: "qmin", r: "Quantil mínimo do basis", passo: 0.05, min: 0, max: 0.5 }, { k: "qmax", r: "Quantil máximo do basis", passo: 0.05, min: 0.5, max: 1 },
       { k: "basisAnosBoi", r: "Anos no basis do boi (0 = desde 2015)", passo: 1, min: 0 }, { k: "basisAnosMilho", r: "Anos no basis do milho (0 = desde 2019)", passo: 1, min: 0 },
       { k: "rcVivo", r: "Rendimento do gordo para o ágio", passo: 0.01 }, { k: "semanasNuvem", r: "Semanas de leilão na nuvem α + β", passo: 1, min: 2 },
       { k: "diasCompras", r: "Dias das nossas compras em destaque", passo: 15, min: 15 },
+      { k: "baseCompra", r: "Nossas compras contra o leilão: base da comparação", largo: true, op: [["vendedor", "Preço por cabeça ÷ peso do vendedor"], ["balanca", "Preço por cabeça ÷ peso de balança na chegada"], ["posto", "Custo posto fazenda (com frete e comissão) ÷ peso de balança"]] },
+      { k: "ivaCompras", r: "IVA embutido no nosso preço (ex.: 0,05)", passo: 0.01, min: 0, max: 0.2 }, { k: "comissaoLeilao", r: "Comissão do comprador no leilão (ex.: 0,03)", passo: 0.005, min: 0, max: 0.2 },
       { k: "limiarPivo", r: "Reversão que confirma pico ou vale do câmbio", passo: 0.005, min: 0.005 },
     ] },
     { grupo: "Lucratividade — o que varia", itens: [
       { k: "indicadores", r: "Indicadores do confinamento", largo: true, op: [["realizado", "Realizado (Resultados do Confinamento)"], ["fixo", "Fixos da planilha"]] },
       { p: "fatorToretonGordo", r: "Toretón gordo ÷ toretón 360 kg", passo: 0.005 }, { p: "juros", r: "Juros (ao ano)", passo: 0.005 },
       { p: "prazoRecebimento", r: "Prazo de recebimento (dias)", passo: 5 },
+      { k: "ripIndexada", r: "Diária da RIP nos meses passados", largo: true, op: [["nao", "Fixa, a de hoje"], ["sim", "Acompanha o custo nutricional de cada mês"]] },
     ] },
     { grupo: "Recria a pasto", itens: [
       { p: "recria.pesoIni", r: "Peso inicial (kg)", passo: 5 }, { p: "recria.gmd", r: "GMD (kg/dia)", passo: 0.01 }, { p: "recria.dias", r: "Dias no pasto", passo: 5 },
@@ -89,13 +93,35 @@
     if (abre) pararRotacao(); else agendarRotacao();
   }
 
+  // ------------------------------------------------------------------ bolinha de informação de cada cartão
+  const INFO = window.MB_INFO || {}; let infoDe = null;
+  function fecharInfo() { const b = $("balao-info"); if (b) b.hidden = true; if (infoDe) infoDe.setAttribute("aria-expanded", "false"); infoDe = null; }
+  function abrirInfo(bt) {
+    let t = INFO[bt.dataset.info]; if (typeof t === "function") { if (!M) return; try { t = t(M); } catch (e) { console.warn("[MercadoBoi] info:", e); return; } } if (!t) return;
+    const b = $("balao-info"), tit = bt.closest(".cartao").querySelector("h2").textContent;
+    b.innerHTML = "<h3>" + tit + "</h3><dl><dt>De onde vem</dt><dd>" + t.fonte + "</dd><dt>A conta</dt><dd>" + t.conta + "</dd><dt>Como ler</dt><dd>" + t.ler + "</dd></dl>";
+    b.hidden = false; infoDe = bt; bt.setAttribute("aria-expanded", "true");
+    const r = bt.getBoundingClientRect(), w = b.offsetWidth, h = b.offsetHeight, m = 8;
+    b.style.left = Math.max(m, Math.min(innerWidth - w - m, r.right - w)) + "px";
+    b.style.top = (r.bottom + m + h > innerHeight && r.top - m - h > 0 ? r.top - m - h : Math.min(r.bottom + m, Math.max(m, innerHeight - h - m))) + "px";
+  }
+  document.querySelectorAll(".cartao").forEach((c) => {
+    const alvo = c.querySelector(".grafico, .corpo[id]"); if (!alvo || !INFO[alvo.id]) return;
+    const bt = document.createElement("button"); bt.type = "button"; bt.className = "info"; bt.dataset.info = alvo.id; bt.textContent = "i"; bt.setAttribute("aria-label", "Sobre este gráfico"); bt.setAttribute("aria-expanded", "false");
+    c.querySelector("header").appendChild(bt);
+    bt.addEventListener("mouseenter", () => abrirInfo(bt)); bt.addEventListener("mouseleave", fecharInfo);
+    bt.addEventListener("focus", () => abrirInfo(bt)); bt.addEventListener("blur", fecharInfo);
+    bt.addEventListener("click", (e) => { e.stopPropagation(); abrirInfo(bt); });
+  });
+  document.addEventListener("click", (e) => { if (infoDe && !e.target.closest(".info")) fecharInfo(); });
+
   // ------------------------------------------------------------------ dados
   let ultimaCarga = 0;
   let D = null, M = null, atual = TELAS.indexOf(new URLSearchParams(location.search).get("tela")), carregando = false, tAtualiza = null;
   if (atual < 0) atual = 0;
 
   function cards() {
-    const nomes = { gordo: "Valor Agro", reposicao: "Reposição", b3: "B3", cambio: "Câmbio R$", bcp: "Câmbio BCP", ypoti: "Ypoti" };
+    const nomes = { gordo: "Valor Agro", datagro: "DATAGRO", reposicao: "Reposição", b3: "B3", cambio: "Câmbio R$", bcp: "Câmbio BCP", ypoti: "Ypoti" };
     $("cards").innerHTML = Object.keys(nomes).map((k) => { const e = window.Dados.estado[k] || { estado: "atualizando", nota: "" };
       return '<span class="card" data-estado="' + e.estado + '" title="' + String(e.nota).replace(/"/g, "&quot;") + '"><i class="luz"></i><b>' + nomes[k] + "</b>" + (e.nota ? "<span>" + e.nota + "</span>" : "") + "</span>"; }).join("");
   }
@@ -105,13 +131,15 @@
     try {
       cards();
       const anc = D ? D.anc : await window.Dados.ancoras();
-      const [gordo, ind, lotes, b3, fx, yp] = await Promise.all([window.Dados.gordo(), window.Dados.indicador(), window.Dados.lotes(), window.Dados.b3(), window.Dados.cambio(), window.Dados.ypoti(S.ponte, S.chave)]);
+      const [gordo, ind, lotes, b3, fx, yp, cme, br] = await Promise.all([window.Dados.gordo(), window.Dados.indicador(), window.Dados.lotes(), window.Dados.b3(), window.Dados.cambio(), window.Dados.ypoti(S.ponte, S.chave), window.Dados.cme(), window.Dados.boiBr()]);
       // se uma fonte falhar numa atualização, fica o que já estava na tela
-      const novo = { anc, gordo, ind, lotes, b3, fx, yp };
+      const novo = { anc, gordo, ind, lotes, b3, fx, yp, cme, br };
+      if (D && !br.hoje && D.br) novo.br = D.br;
+      if (D && !(cme && cme.contratos.length)) novo.cme = D.cme;
       if (D) { if (!gordo.length) novo.gordo = D.gordo; if (!ind.length) novo.ind = D.ind; if (!lotes.length) novo.lotes = D.lotes; if (!b3.bgi.length) novo.b3 = D.b3; if (!fx.brl) novo.fx = D.fx; if (!yp.ligado && D.yp.ligado) novo.yp = D.yp; }
       D = novo; M = window.Modelo.montar(D, S);
       chaveCambio = M.cambio ? M.cambio.chave : null;
-      T.pilulaCambio(M);
+      T.cotacoes(M);
       desenharAtual(false);
       ultimaCarga = Date.now();
       $("versao").textContent = "atualizado " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) + " · v" + CFG.versao;
@@ -129,7 +157,7 @@
     try { DESENHO[t](M); if (animar) { T.reanimar(t); T.contar(t); } } catch (e) { console.error("[MercadoBoi] tela " + t + ":", e); }
   }
   function ativar(i, manual) {
-    atual = (i + TELAS.length) % TELAS.length;
+    atual = (i + TELAS.length) % TELAS.length; T.soltarMes(); fecharInfo();
     TELAS.forEach((t, j) => { $("tela-" + t).classList.toggle("ativa", j === atual); });
     document.querySelectorAll(".segmentado button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tela === TELAS[atual])));
     requestAnimationFrame(() => desenharAtual(true));
@@ -155,7 +183,10 @@
 
   // ------------------------------------------------------------------ eventos
   document.querySelectorAll(".segmentado button").forEach((b) => b.addEventListener("click", () => ativar(TELAS.indexOf(b.dataset.tela))));
+  const telaCheia = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); };
   $("bt-config").addEventListener("click", () => abrirGaveta(true));
+  $("bt-cheia").addEventListener("click", telaCheia);
+  document.addEventListener("fullscreenchange", () => { $("bt-cheia").classList.toggle("ativo", !!document.fullscreenElement); setTimeout(() => { T.redimensionar(); desenharAtual(false); T.caberCotacoes(); }, 150); });
   $("bt-fechar").addEventListener("click", () => abrirGaveta(false));
   $("veu").addEventListener("click", () => abrirGaveta(false));
   $("form-config").addEventListener("submit", (e) => e.preventDefault());
@@ -167,15 +198,15 @@
     if (k === "1" || k === "2" || k === "3" || k === "4") ativar(+k - 1);
     else if (k === "arrowright") ativar(atual + 1); else if (k === "arrowleft") ativar(atual - 1);
     else if (k === "c") abrirGaveta(!$("gaveta").classList.contains("aberta"));
-    else if (k === "escape") abrirGaveta(false);
+    else if (k === "escape") { abrirGaveta(false); fecharInfo(); }
     else if (k === "r") { S.rotacao = +S.rotacao > 0 ? 0 : 45; guarda.gravar("mb:cfg", S); agendarRotacao(); }
-    else if (k === "f") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+    else if (k === "f") telaCheia();
   });
   let tParado = null;
   const mexeu = () => { document.body.classList.remove("parado"); clearTimeout(tParado); tParado = setTimeout(() => { if (!$("gaveta").classList.contains("aberta")) document.body.classList.add("parado"); }, 4000); };
   ["mousemove", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, mexeu, { passive: true }));
   let tRes = null;
-  window.addEventListener("resize", () => { clearTimeout(tRes); tRes = setTimeout(() => { T.redimensionar(); desenharAtual(false); }, 200); });
+  window.addEventListener("resize", () => { clearTimeout(tRes); tRes = setTimeout(() => { T.redimensionar(); desenharAtual(false); T.caberCotacoes(); }, 200); });
   // mantém a tela acesa (TV do escritório) quando o navegador deixa
   async function acesa() { try { if (navigator.wakeLock && document.visibilityState === "visible") await navigator.wakeLock.request("screen"); } catch (e) { /* sem permissão: segue */ } }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { acesa(); if (D && Date.now() - ultimaCarga > 5 * 60000) carregar(); } });
@@ -185,18 +216,27 @@
   async function vigiarCambio() {
     if (olhandoCambio || carregando || !D || !S.ponte || document.visibilityState !== "visible") return;
     const a = window.Modelo.agoraAssuncao();
-    if (!a.util || a.min < 8 * 60 + 25 || a.min > 13 * 60 + 50) { if (M && M.cambio && M.cambio.aberto) { M = window.Modelo.montar(D, S); T.pilulaCambio(M); cards(); } return; }
+    if (!a.util || a.min < 8 * 60 + 25 || a.min > 13 * 60 + 50) { if (M && M.cambio && M.cambio.aberto) { M = window.Modelo.montar(D, S); T.cotacoes(M); cards(); } return; }
     olhandoCambio = true;
     try {
       const linhas = await window.Dados.cambioBcp(S.ponte, S.chave);
       if (linhas) {
         const antes = M && M.cambio ? M.cambio.ult.medio : null;
-        D.yp.cambioBcp = linhas; M = window.Modelo.montar(D, S); T.pilulaCambio(M); cards();
+        D.yp.cambioBcp = linhas; M = window.Modelo.montar(D, S); T.cotacoes(M); cards();
         if (M.cambio && M.cambio.chave !== chaveCambio) { chaveCambio = M.cambio.chave; if (TELAS[atual] === "cambio") desenharAtual(false); T.piscar(antes == null || M.cambio.ult.medio >= antes); }
       }
     } finally { olhandoCambio = false; }
   }
   setInterval(vigiarCambio, 60000);
+
+  // ------------------------------------------------------------------ B3 ao vivo: com o pregão aberto, renova as cotações do topo a cada poucos minutos
+  let olhandoB3 = false;
+  async function vigiarB3() {
+    if (olhandoB3 || carregando || !D || document.visibilityState !== "visible" || !window.Modelo.b3Aberta()) return;
+    olhandoB3 = true;
+    try { const b3 = await window.Dados.b3(); if (b3.bgi.length) { D.b3 = b3; M = window.Modelo.montar(D, S); T.cotacoes(M); cards(); } } finally { olhandoB3 = false; }
+  }
+  setInterval(vigiarB3, Math.max(1, +S.atualizarB3 || 2) * 60000);
 
   // ------------------------------------------------------------------ início
   aplicarEfeitos(); relogio(); setInterval(relogio, 20000); mexeu(); acesa();

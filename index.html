@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#06130C">
 <title>Mercado do Boi · Ypoti</title>
 <link rel="icon" href="assets/favicon.ico">
-<link rel="stylesheet" href="css/app.css?v=2026-11-26d">
+<link rel="stylesheet" href="css/app.css?v=2026-11-27a">
 </head>
 <body>
 <div class="fundo" aria-hidden="true"><i class="foto"></i><i class="veu-foto"></i><i class="bolha b1"></i><i class="bolha b2"></i><i class="bolha b3"></i><i class="grao"></i></div>
@@ -24,9 +24,11 @@
       <button role="tab" data-tela="lucro" aria-selected="false">Lucratividade</button>
       <button role="tab" data-tela="cambio" aria-selected="false">Câmbio</button>
     </nav>
+    <div id="cotacoes" class="cotacoes" aria-label="Cotações do dia"></div>
     <div class="topo-dir">
-      <span id="pilula-cambio" class="pilula vidro pilula-cambio" hidden></span>
-      <span id="relogio" class="pilula vidro discreta-txt"></span>
+      <button id="bt-cheia" class="icone vidro discreto" aria-label="Tela cheia (tecla F)" title="Tela cheia (tecla F)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+      </button>
       <button id="bt-config" class="icone vidro discreto" aria-label="Configurações (tecla C)" title="Configurações (tecla C)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
       </button>
@@ -48,7 +50,7 @@
           <div class="corpo"><div class="grafico" id="g-milho-serie"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro"><header><h2>Basis do milho, Paraguai interno menos B3</h2><p>US$ por tonelada, por mês do ano</p></header>
           <div class="corpo"><div class="grafico" id="g-milho-basis"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro"><header><h2>Curva futura do milho (CCM) no Paraguai</h2><p>US$/t, com o basis do mês</p></header>
+        <article class="cartao vidro"><header><h2>Curva futura do milho: B3 e Chicago</h2><p>US$/t, CCM com o basis do mês e CME</p></header>
           <div class="corpo"><div class="grafico" id="g-milho-curva"></div><p class="vazio" hidden></p></div></article>
       </div>
     </section>
@@ -57,13 +59,13 @@
     <section id="tela-reposicao" class="tela" aria-label="Reposição">
       <div class="kpis" id="kpis-reposicao"></div>
       <div class="grade grade-repo">
-        <article class="cartao vidro" style="grid-area:pesos"><header><h2>Reposição macho por peso</h2><p>Indicador semanal dos leilões, Gs por kg vivo</p></header>
+        <article class="cartao vidro" style="grid-area:pesos"><header><h2>Reposição macho por peso</h2><p>Indicador semanal e cada negócio de leilão, por fonte · mil Gs por kg vivo</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-pesos"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:agio"><header><h2>Ágio da reposição sobre o gordo</h2><p>Kg vivo da reposição ÷ kg vivo do gordo − 1</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-agio"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:desvio"><header><h2>Compramos bem ou mal?</h2><p>Nossas compras contra o indicador, no peso e sexo de cada lote</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-desvio"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:nuvem"><header><h2>A curva de hoje: α + β · peso</h2><p>Lotes de leilão das últimas semanas, retas do indicador e as nossas compras</p></header>
+        <article class="cartao vidro" style="grid-area:nuvem"><header><h2>A curva de hoje: α + β · peso</h2><p>Lotes de leilão das últimas semanas (bolinha pelo nº de cabeças), retas do indicador e as nossas compras</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-nuvem"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:ab"><header><h2>α e β no tempo</h2><p>Serviço da vaca e quilo produzido</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-ab"></div><p class="vazio" hidden></p></div></article>
@@ -74,13 +76,14 @@
     <section id="tela-lucro" class="tela" aria-label="Lucratividade">
       <div class="kpis" id="kpis-lucro"></div>
       <div class="grade grade-lucro">
-        <article class="cartao vidro" style="grid-area:serie"><header><h2>Lucro por cabeça em cada etapa</h2><p>US$ por cabeça, com os preços e os indicadores de cada mês</p></header>
+        <article class="cartao vidro" style="grid-area:serie"><header><h2>Resultado de cada etapa</h2><p id="sub-lucro-serie">US$ por cabeça, com os preços e os indicadores de cada mês</p>
+          <div id="alt-lucro" class="alterna" role="group" aria-label="Unidade do gráfico"><button data-modo="usd" aria-pressed="true">US$/cab</button><button data-modo="tir" aria-pressed="false">TIR</button></div></header>
           <div class="corpo"><div class="grafico" id="g-lucro-serie"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:equil"><header><h2>Preço de venda e ponto de equilíbrio</h2><p>US$ por kg de carcaça</p></header>
           <div class="corpo"><div class="grafico" id="g-lucro-equilibrio"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:sens"><header><h2>E se os preços mudarem?</h2><p>Lucro do ciclo completo, US$ por cabeça</p></header>
+        <article class="cartao vidro" style="grid-area:sens"><header><h2>E se os preços mudarem?</h2><p id="sub-lucro-sens">Lucro do ciclo completo, US$ por cabeça</p></header>
           <div class="corpo"><div class="grafico" id="g-lucro-sens"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:conta"><header><h2>A conta de hoje</h2><p>US$ por cabeça, motor da planilha Rentabilidade do Invernista</p></header>
+        <article class="cartao vidro" style="grid-area:conta"><header><h2 id="tit-lucro-conta">A conta de hoje</h2><p>US$ por cabeça, motor da planilha Rentabilidade do Invernista</p><button id="bt-hoje" class="mini" hidden>voltar para hoje</button></header>
           <div class="corpo rolavel" id="conta-lucro"></div></article>
       </div>
     </section>
@@ -89,15 +92,15 @@
     <section id="tela-cambio" class="tela" aria-label="Câmbio">
       <div class="kpis" id="kpis-cambio"></div>
       <div class="grade grade-cambio">
-        <article class="cartao vidro" style="grid-area:hist"><header><h2>Dólar em guaranis: velas, médias, picos e vales</h2><p>Gs por US$, preço médio entre compra e venda do BCP</p></header>
+        <article class="cartao vidro" style="grid-area:hist"><header><h2>Dólar em guaranis: velas, médias, picos, vales e projeção</h2><p>Gs por US$, preço médio entre compra e venda do BCP</p></header>
           <div class="corpo"><div class="grafico" id="g-cambio-hist"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:hoje"><header><h2>O dia, corte a corte</h2><p>Gs por US$, a cada 30 minutos</p></header>
-          <div class="corpo"><div class="grafico" id="g-cambio-hoje"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:spread"><header><h2>Quando converter</h2><p>Diferença mediana entre compra e venda por horário, em bps</p></header>
-          <div class="corpo"><div class="grafico" id="g-cambio-spread"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:ifr"><header><h2>Força relativa (IFR de 14 dias)</h2><p>Acima de 70 sobrecomprado, abaixo de 30 sobrevendido</p></header>
+        <article class="cartao vidro" style="grid-area:termo"><header><h2>Termômetro técnico</h2><p>O que cada método diz sobre o dólar</p></header>
+          <div class="corpo termo"><div class="termo-rel"><div class="grafico" id="g-cambio-termo"></div><p class="vazio" hidden></p></div><div id="metodos-cambio" class="rolavel"></div></div></article>
+        <article class="cartao vidro" style="grid-area:dia"><header><h2>O dia e a hora de converter</h2><p>Compra e venda de hoje sobre o dia típico dos últimos 60 pregões</p></header>
+          <div class="corpo"><div class="grafico" id="g-cambio-dia"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:ifr"><header><h2>Força relativa (IFR de 14 dias)</h2><p>Mede se o dólar subiu ou caiu rápido demais</p></header>
           <div class="corpo"><div class="grafico" id="g-cambio-ifr"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:tec"><header><h2>Leitura técnica</h2><p>Tendência, suporte, resistência e os últimos picos e vales</p></header>
+        <article class="cartao vidro" style="grid-area:tec"><header><h2>Projeção e níveis</h2><p>Para 30 e 60 dias, com suporte, resistência e os últimos picos e vales</p></header>
           <div class="corpo rolavel" id="tecnica-cambio"></div></article>
       </div>
     </section>
@@ -105,11 +108,12 @@
 
   <footer class="doca">
     <div id="cards" class="cards" aria-label="Fontes de dados"></div>
-    <div class="rodape-dir"><span id="rotacao-txt" class="rot-txt"></span><span id="versao" class="rot-txt"></span></div>
+    <div class="rodape-dir"><span id="rotacao-txt" class="rot-txt"></span><span id="relogio" class="rot-txt"></span><span id="versao" class="rot-txt"></span></div>
     <div class="progresso" aria-hidden="true"><i id="progresso"></i></div>
   </footer>
 </div>
 
+<div id="balao-info" class="balao-info vidro" role="tooltip" hidden></div>
 <div id="veu" class="veu" hidden></div>
 <aside id="gaveta" class="gaveta vidro" aria-label="Configurações" aria-hidden="true">
   <div class="gaveta-cab"><h2>Configurações</h2><button id="bt-fechar" class="icone" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -121,11 +125,12 @@
 </aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-<script src="js/config.js?v=2026-11-26d"></script>
-<script src="js/calc.js?v=2026-11-26d"></script>
-<script src="js/dados.js?v=2026-11-26d"></script>
-<script src="js/modelo.js?v=2026-11-26d"></script>
-<script src="js/telas.js?v=2026-11-26d"></script>
-<script src="js/app.js?v=2026-11-26d"></script>
+<script src="js/config.js?v=2026-11-27a"></script>
+<script src="js/calc.js?v=2026-11-27a"></script>
+<script src="js/info.js?v=2026-11-27a"></script>
+<script src="js/dados.js?v=2026-11-27a"></script>
+<script src="js/modelo.js?v=2026-11-27a"></script>
+<script src="js/telas.js?v=2026-11-27a"></script>
+<script src="js/app.js?v=2026-11-27a"></script>
 </body>
 </html>

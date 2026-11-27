@@ -265,6 +265,46 @@
     return out;
   }
 
+  /** Mínimos quadrados ponderados V = α + β·w (pesos = cabeças do lote). */
+  function mqoPond(xs, ys, ws) {
+    let sw = 0, sx = 0, sy = 0;
+    for (let i = 0; i < xs.length; i++) { const w = ws[i] > 0 ? ws[i] : 0; sw += w; sx += w * xs[i]; sy += w * ys[i]; }
+    if (!(sw > 0) || xs.length < 3) return null;
+    const mx = sx / sw, my = sy / sw; let sxx = 0, sxy = 0;
+    for (let i = 0; i < xs.length; i++) { const w = ws[i] > 0 ? ws[i] : 0; sxx += w * (xs[i] - mx) ** 2; sxy += w * (xs[i] - mx) * (ys[i] - my); }
+    if (!sxx) return null;
+    const beta = sxy / sxx;
+    return { alfa: my - beta * mx, beta, n: xs.length, peso: sw };
+  }
+  /** Média móvel exponencial (semente = primeiro valor). */
+  function mme(v, n) { const k = 2 / (n + 1), out = []; let e = null; for (let i = 0; i < v.length; i++) { e = e == null ? v[i] : v[i] * k + e * (1 - k); out.push(e); } return out; }
+  /** MACD clássico (12, 26, 9): devolve {macd, sinal, hist} (arrays). */
+  function macd(v, r, l, s) {
+    const a = mme(v, r || 12), b = mme(v, l || 26), m = a.map((x, i) => x - b[i]), sg = mme(m, s || 9);
+    return { macd: m, sinal: sg, hist: m.map((x, i) => x - sg[i]) };
+  }
+  /** Bandas de Bollinger (n, k desvios) no último ponto: {media, sup, inf, pctB}. */
+  function bollinger(v, n, k) {
+    n = n || 20; k = k || 2; if (v.length < n) return null;
+    const j = v.slice(-n), m = media(j), dp = Math.sqrt(j.reduce((t, x) => t + (x - m) ** 2, 0) / n), sup = m + k * dp, inf = m - k * dp;
+    return { media: m, sup, inf, pctB: sup > inf ? (v[v.length - 1] - inf) / (sup - inf) : 0.5 };
+  }
+  /** Projeção estatística (leque): passeio aleatório com a tendência recente amortecida.
+      deriva diária = média dos retornos de `nTend` pregões, cortada pela metade a cada `meiaVida` pregões;
+      incerteza = desvio-padrão dos retornos de `nVol` pregões × √horizonte. Devolve um ponto por pregão à frente. */
+  function projetar(fech, h, opc) {
+    opc = opc || {}; const nVol = opc.nVol || 60, nTend = opc.nTend || 20, meia = opc.meiaVida || 10;
+    if (fech.length < Math.max(nVol, nTend) + 1) return null;
+    const ret = []; for (let i = 1; i < fech.length; i++) ret.push(Math.log(fech[i] / fech[i - 1]));
+    const rv = ret.slice(-nVol), mv = media(rv), sd = Math.sqrt(rv.reduce((t, x) => t + (x - mv) ** 2, 0) / (rv.length - 1)), mt = media(ret.slice(-nTend));
+    const ult = fech[fech.length - 1], out = []; let acum = 0;
+    for (let k = 1; k <= h; k++) {
+      acum += mt * Math.pow(0.5, k / meia); const s = sd * Math.sqrt(k), c = ult * Math.exp(acum);
+      out.push({ k, med: c, i50: c * Math.exp(-0.6745 * s), s50: c * Math.exp(0.6745 * s), i80: c * Math.exp(-1.2816 * s), s80: c * Math.exp(1.2816 * s) });
+    }
+    return { pontos: out, volDia: sd, tendDia: mt };
+  }
+
   /** Cópia funda simples dos parâmetros com substituições (obj de mesmo formato, só o que muda). */
   function mesclar(base, extra) {
     const o = JSON.parse(JSON.stringify(base));
@@ -278,5 +318,5 @@
   }
 
   return { data, num, media, mediaPond, quantil, mesDe, anoDe, somaDias, difDias, segundaDe, mesesEntre, ultimoAte, porMes, preencher,
-    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales };
+    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar };
 });

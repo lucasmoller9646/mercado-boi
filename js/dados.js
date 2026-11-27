@@ -74,16 +74,37 @@
   async function lotes() {
     try {
       const g = await gviz(CFG.planilhas.reposicao.id, CFG.planilhas.reposicao.base, { cabecalhos: 1,
-        consulta: "select B,D,J,K,N,O,R,S,Y where L='SIM' and Z='SIM' and O is not null and S is not null" });
-      const out = [];
+        consulta: "select B,D,J,K,N,O,R,S,Y,G,H,I,AA,AB,AC,AD,AF where L='SIM' and Z='SIM' and O is not null and S is not null" });
+      const out = [], tx = (v) => (v == null ? "" : String(v).trim());
       for (const l of g.linhas) {
         const d = C.data(l[1]), peso = C.num(l[5]), pkg = C.num(l[7]);
         if (!d || !(peso > 0) || !(pkg > 0)) continue;
-        out.push({ fonte: l[0], d, cat: l[2], sexo: l[3], cab: C.num(l[4]) || 0, peso, pcab: C.num(l[6]) || pkg * peso, pkg, cot: C.num(l[8]) });
+        out.push({ fonte: l[0], d, cat: l[2], sexo: l[3], cab: C.num(l[4]) || 0, peso, pcab: C.num(l[6]) || pkg * peso, pkg, cot: C.num(l[8]),
+          feria: tx(l[9]), lote: tx(l[10]), catOrig: tx(l[11]), depto: tx(l[12]), vendedor: tx(l[13]), carimbo: tx(l[14]), obs: tx(l[15]), url: tx(l[16]) });
       }
       out.sort((a, b) => (a.d < b.d ? -1 : 1));
       return out;
     } catch (e) { marca("reposicao", "erro", "lotes: " + String(e.message || e)); return []; }
+  }
+
+  // ------------------------------------------------------------ boi no Brasil: Indicador do Boi DATAGRO SP
+  // primitiva pública (último dia, preço em R$/@ e variação do dia) + a série que o robô do repositório guarda dia a dia
+  async function boiBr() {
+    const [prim, arq] = await Promise.all([
+      pegar(CFG.datagro, "json", 20000).then((j) => { const p = Array.isArray(j) ? j[0] : j; return p && p.ult > 0 && p.dia ? { d: String(p.dia).slice(0, 10), rs: +p.ult, var: p.var != null ? +p.var / 100 : null } : null; }).catch(() => null),
+      pegar("data/boi_br_diario.json?t=" + Math.floor(Date.now() / 300000), "json", 15000).then((j) => (j.pontos || []).filter((x) => x.rs > 0 && x.d)).catch(() => []),
+    ]);
+    marca("datagro", prim ? "ok" : "erro", prim ? "R$ " + C.num(prim.rs).toFixed(2).replace(".", ",") + "/@ · " + prim.d.slice(8, 10) + "/" + prim.d.slice(5, 7) : "primitiva não respondeu");
+    return { hoje: prim, pontos: arq };
+  }
+
+  // ------------------------------------------------------------ milho em Chicago (arquivo atualizado pelo robô do repositório)
+  async function cme() {
+    try {
+      const j = await pegar("data/cme_milho.json?t=" + Math.floor(Date.now() / 300000), "json", 15000);
+      const cs = (j.contratos || []).filter((c) => c.preco > 0 && c.venc).sort((a, b) => (a.venc < b.venc ? -1 : 1));
+      return { contratos: cs, atualizado: j.atualizado || null };
+    } catch (e) { return { contratos: [], atualizado: null }; }
   }
 
   // ------------------------------------------------------------ bolsa (B3): BGI, CCM e DOL
@@ -185,6 +206,7 @@
           const cat = String(l[t.c("@antes:CANTIDAD TOTAL")] || "").toUpperCase();
           out.compras.push({ d, cab, peso, pcab, pkg: pcab / peso, cat, sexo: /HEMBRA|VAQUILL|TERNERA/.test(cat) ? "Fêmea" : "Macho",
             pesoFaz: n(l, "PESO PROMEDIO POR CABEZA  BASCULA"), custoFaz: n(l, "COSTOS TOTAL POR CABEZA (PYG)"), cambio: n(l, "CAMBIO DEL DIA"),
+            unidade: String(l[t.c("CATEGORIA")] || "").trim().toUpperCase(), frete: n(l, "COSTO FLETE POR ANIMAL"), comissao: n(l, "COSTO COMISIÓN POR ANIMAL"),
             destino: l[t.c("ESTABLECIMENTO DE DESTINO")] || "", dono: l[t.c("PROPRIETARIO")] || "", depto: l[t.c("DEPARTAMENTO")] || "", raca: l[t.c("RAZA")] || "" });
         }
         out.compras.sort((a, b) => (a.d < b.d ? -1 : 1));
@@ -250,5 +272,5 @@
     } catch (e) { marca("ypoti", "erro", String(e.message || e)); marca("bcp", "erro", "ponte fora do ar"); return vazio; }
   }
 
-  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp };
+  window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp, cme, boiBr };
 })();

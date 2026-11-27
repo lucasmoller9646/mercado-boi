@@ -20,6 +20,11 @@
       .formatToParts(new Date()).forEach((x) => (p[x.type] = x.value));
     return { d: p.year + "-" + p.month + "-" + p.day, min: (+p.hour % 24) * 60 + +p.minute, util: ["Sat", "Sun"].indexOf(p.weekday) < 0 };
   }
+  /** Pregão da B3 (boi e milho): dias úteis, das 9h às 18h30 de Brasília. */
+  function b3Aberta() {
+    const p = {}; new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false, weekday: "short" }).formatToParts(new Date()).forEach((x) => (p[x.type] = x.value));
+    const min = (+p.hour % 24) * 60 + +p.minute; return ["Sat", "Sun"].indexOf(p.weekday) < 0 && min >= 9 * 60 && min <= 18 * 60 + 30;
+  }
   const mercadoAberto = () => { const a = agoraAssuncao(); return a.util && a.min >= 8 * 60 + 25 && a.min <= 13 * 60 + 40; };
 
   /** Câmbio BCP: velas diárias, médias, IFR, picos e vales, spread por horário. */
@@ -50,10 +55,52 @@
     const melhor = spreadHora.length ? spreadHora.reduce((a, b) => (b.med < a.med ? b : a)) : null;
     const conf = pv.filter((x) => x.confirmado), ultPico = conf.filter((x) => x.tipo === "pico").pop(), ultVale = conf.filter((x) => x.tipo === "vale").pop();
     const ag = agoraAssuncao();
+    // o dia típico: compra e venda de cada corte contra o preço médio do próprio dia (bps), mediana de 60 pregões
+    const desv = (x) => { const reais = x.cortes.filter((c) => !c.semNeg), mm = C.media(reais.map((c) => c.medio)); return reais.map((c) => ({ h: c.h, co: (c.compra / mm - 1) * 1e4, ve: (c.venda / mm - 1) * 1e4 })); };
+    const acc = {}; for (const x of janela) for (const c of desv(x)) { (acc[c.h] = acc[c.h] || { co: [], ve: [] }).co.push(c.co); acc[c.h].ve.push(c.ve); }
+    const tipico = Object.keys(acc).sort().map((h) => ({ h, compra: C.mediana(acc[h].co), venda: C.mediana(acc[h].ve), n: acc[h].co.length }));
+    tipico.forEach((t) => { t.spread = t.venda - t.compra; });
+    const diaHoje = desv(hoje);
+    const melhorVenda = tipico.length ? tipico.reduce((a, b) => (b.compra > a.compra ? b : a)) : null;   // quem vende dólar recebe a cotação de compra
+    const melhorCompra = tipico.length ? tipico.reduce((a, b) => (b.venda < a.venda ? b : a)) : null;    // quem compra dólar paga a cotação de venda
+    // métodos de análise técnica → nota de −2 (forte queda do dólar) a +2 (forte alta)
+    const faixa = (v, f, m) => (v == null ? null : v >= f ? 2 : v >= m ? 1 : v <= -f ? -2 : v <= -m ? -1 : 0);
+    const mc = C.macd(fech), bb = C.bollinger(fech, 20, 2), ifrU = ifr[n - 1], u = fech[n - 1];
+    const gap = m10[n - 1] != null && m50[n - 1] != null ? m10[n - 1] / m50[n - 1] - 1 : null;
+    const mom20 = n > 20 ? u / fech[n - 21] - 1 : null, mom60 = n > 60 ? u / fech[n - 61] - 1 : null;
+    const picos = conf.filter((x) => x.tipo === "pico").slice(-2), vales = conf.filter((x) => x.tipo === "vale").slice(-2);
+    let estr = null, estrTxt = "poucos pontos";
+    if (ultPico && ultVale) {
+      if (u > ultPico.v) { estr = 2; estrTxt = "rompeu a resistência de " + Math.round(ultPico.v); }
+      else if (u < ultVale.v) { estr = -2; estrTxt = "perdeu o suporte de " + Math.round(ultVale.v); }
+      else if (picos.length === 2 && vales.length === 2) {
+        const sobe = picos[1].v > picos[0].v && vales[1].v > vales[0].v, desce = picos[1].v < picos[0].v && vales[1].v < vales[0].v;
+        estr = sobe ? 1 : desce ? -1 : 0; estrTxt = sobe ? "topos e fundos ascendentes" : desce ? "topos e fundos descendentes" : "entre o suporte e a resistência";
+      } else { estr = 0; estrTxt = "entre o suporte e a resistência"; }
+    }
+    const pc = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + (v * 100).toFixed(1).replace(".", ",") + "%");
+    const metodos = [
+      { nome: "Médias de 10 e 50 dias", tipo: "tendência", nota: faixa(gap, 0.015, 0.002), det: gap == null ? "faltam dias" : "média curta " + pc(gap) + " sobre a longa" },
+      { nome: "Variação de 20 pregões", tipo: "tendência", nota: faixa(mom20, 0.03, 0.01), det: pc(mom20) },
+      { nome: "Variação de 60 pregões", tipo: "tendência", nota: faixa(mom60, 0.06, 0.02), det: pc(mom60) },
+      { nome: "MACD (12, 26, 9)", tipo: "tendência", nota: n < 35 ? null : (mc.hist[n - 1] > 0 ? (mc.macd[n - 1] > 0 ? 2 : 1) : mc.hist[n - 1] < 0 ? (mc.macd[n - 1] < 0 ? -2 : -1) : 0),
+        det: n < 35 ? "faltam dias" : "histograma " + (mc.hist[n - 1] > 0 ? "positivo" : "negativo") + ", linha " + (mc.macd[n - 1] > 0 ? "acima" : "abaixo") + " de zero" },
+      { nome: "Picos e vales", tipo: "tendência", nota: estr, det: estrTxt },
+      { nome: "IFR de 14 dias", tipo: "oscilador", nota: ifrU == null ? null : ifrU >= 80 ? -2 : ifrU >= 70 ? -1 : ifrU <= 20 ? 2 : ifrU <= 30 ? 1 : 0,
+        det: ifrU == null ? "faltam dias" : Math.round(ifrU) + (ifrU >= 70 ? ": sobrecomprado" : ifrU <= 30 ? ": sobrevendido" : ": zona neutra") },
+      { nome: "Bandas de Bollinger (20, 2)", tipo: "oscilador", nota: !bb ? null : bb.pctB >= 1 ? -2 : bb.pctB >= 0.85 ? -1 : bb.pctB <= 0 ? 2 : bb.pctB <= 0.15 ? 1 : 0,
+        det: !bb ? "faltam dias" : bb.pctB >= 0.85 ? "encostado na banda de cima" : bb.pctB <= 0.15 ? "encostado na banda de baixo" : "no meio das bandas" },
+    ];
+    const validos = metodos.filter((m) => m.nota != null), tend = validos.filter((m) => m.tipo === "tendência");
+    const sintese = validos.length ? C.media(validos.map((m) => m.nota)) : null, sinteseTend = tend.length ? C.media(tend.map((m) => m.nota)) : null;
+    // projeção: 42 pregões (≈ 60 dias corridos); o 21º pregão ≈ 30 dias
+    const proj = C.projetar(fech, 42);
+    if (proj) { let d = hoje.d; proj.pontos.forEach((pt) => { do { d = C.somaDias(d, 1); } while ([0, 6].indexOf(new Date(d + "T12:00:00Z").getUTCDay()) >= 0); pt.d = d; }); }
     return { dias, fech, m10, m50, ifr, pv, sinal, desde, hoje, ontem, ult, ref: hoje.ref, varDia: ontem ? ult.medio / ontem.c - 1 : null,
       mom60: n > 60 ? fech[n - 1] / fech[n - 61] - 1 : null, mom20: n > 20 ? fech[n - 1] / fech[n - 21] - 1 : null, spreadHora, melhor,
       spread30: C.mediana([].concat.apply([], dias.slice(-30).map((x) => x.cortes.filter((c) => !c.semNeg).map((c) => c.spread)))),
       resistencia: ultPico ? ultPico.v : null, suporte: ultVale ? ultVale.v : null, max: Math.max.apply(null, dias.map((x) => x.h)), min: Math.min.apply(null, dias.map((x) => x.l)),
+      tipico, diaHoje, melhorVenda, melhorCompra, metodos, sintese, sinteseTend, proj, bb,
       aberto: mercadoAberto() && hoje.d === ag.d, chave: hoje.d + " " + ult.h + " " + ult.compra + " " + ult.venda };
   }
 
@@ -79,11 +126,21 @@
 
     // ================================================================ boi gordo
     const anc = D.anc.boi, va = D.gordo;
+    // Brasil: série âncora (US$/kg carcaça) + Indicador do Boi DATAGRO guardado dia a dia + o de hoje (R$/@ ÷ 15 ÷ dólar)
+    const brMapa = new Map(); anc.d.forEach((d, i) => brMapa.set(d, anc.br[i]));
+    const ptsBr = ((D.br && D.br.pontos) || []).slice();
+    const brHoje = D.br && D.br.hoje;
+    if (brHoje && !ptsBr.some((x) => x.d === brHoje.d)) ptsBr.push({ d: brHoje.d, rs: brHoje.rs, brl: null });
+    const fxBr = (x) => x.brl > 3 ? x.brl : (D.fx.brl || null);
+    ptsBr.forEach((x) => { const f = fxBr(x); if (f && x.d > (anc.d[anc.d.length - 1] || "")) brMapa.set(x.d, x.rs / 15 / f); });
+    const brD = [...brMapa.keys()].sort(), brV = brD.map((d) => brMapa.get(d));
     const pyD = [], pyV = [];
     const corteVA = va.length ? va[0].d : "9999";
     anc.d.forEach((d, i) => { if (d < corteVA) { pyD.push(d); pyV.push(anc.py[i]); } });
     va.forEach((l) => { pyD.push(l.d); pyV.push(l.nov); });
     const pyEm = C.ultimoAte(pyD, pyV);
+    // depois do fim da âncora, o basis diário sai do Valor Agro contra o DATAGRO do mesmo dia
+    const basisNovo = brD.filter((d) => d > (anc.d[anc.d.length - 1] || "") && va.length && d >= va[0].d).map((d) => ({ d, b: pyEm(d) / brMapa.get(d) - 1 }));
     const ult = va.length ? va[va.length - 1] : null;
     const pyHoje = ult ? ult.nov : pyV[pyV.length - 1];
     let pySemana = null;
@@ -98,9 +155,13 @@
     let vendaHoje = rec.length ? C.mediaPond(rec.map((v) => v.preco), rec.map((v) => v.cab)) : null, vendaRef = rec.length ? "45 dias" : null;
     if (vendaHoje == null && vendaMes.size) { const k = [...vendaMes.keys()].sort().pop(); vendaHoje = vendaMes.get(k); vendaRef = "média de " + k; }
     const cabRec = rec.reduce((s, v) => s + v.cab, 0);
+    const porPreco = {}; rec.forEach((v) => { const k = v.preco.toFixed(2); porPreco[k] = (porPreco[k] || 0) + v.cab; });
+    const ultVenda = rec.length ? rec[rec.length - 1] : null;
+    const vendaDet = rec.length ? { min: Math.min.apply(null, rec.map((v) => v.preco)), max: Math.max.apply(null, rec.map((v) => v.preco)), ultPreco: ultVenda.preco, ultData: ultVenda.d,
+      porPreco: Object.keys(porPreco).sort().map((k) => ({ preco: +k, cab: porPreco[k] })) } : null;
 
     // basis Paraguai × Brasil (% sobre o Brasil), sazonal
-    const basisBoi = anc.d.map((d, i) => ({ d, b: anc.py[i] / anc.br[i] - 1 }));
+    const basisBoi = anc.d.map((d, i) => ({ d, b: anc.py[i] / anc.br[i] - 1 })).concat(basisNovo);
     const sazBoi = C.basisSazonal(basisBoi, S.qmin, S.qmax, S.basisAnosBoi, M.hoje);
     const anoCorr = String(C.anoDe(M.hoje));
     const basisAno = C.porMes(basisBoi.filter((l) => l.d.slice(0, 4) === anoCorr).map((l) => ({ d: l.d, v: l.b })));
@@ -115,8 +176,9 @@
     const frenteBoi = curvaBoi[0] || null;
     const basisHoje = frenteBoi && frenteBoi.usd && pyHoje ? pyHoje / frenteBoi.usd - 1 : null;
     if (basisHoje != null) basisAno.set(mesAtual, basisHoje);
-    M.boi = { pyD, pyV, brD: anc.d, brV: anc.br, pyHoje, pySemana, ue: ult ? ult.ue : null, vaca: ult ? ult.vaca : null, dataVA: ult ? ult.d : null,
-      vendaMes, vendaHoje, vendaRef, cabRec, premio: vendaHoje != null && pyHoje ? vendaHoje - pyHoje : null,
+    const brUlt = brD.length ? { d: brD[brD.length - 1], usd: brV[brV.length - 1] } : null;
+    M.boi = { pyD, pyV, brD, brV, brUlt, brHoje, ancFim: anc.d[anc.d.length - 1], pyHoje, pySemana, ue: ult ? ult.ue : null, vaca: ult ? ult.vaca : null, dataVA: ult ? ult.d : null,
+      vendaMes, vendaHoje, vendaRef, cabRec, vendaDet, premio: vendaHoje != null && pyHoje ? vendaHoje - pyHoje : null,
       saz: sazBoi, basisAno, basisHoje, curva: curvaBoi, frente: frenteBoi, inicioJanela };
 
     // ================================================================ milho
@@ -136,8 +198,11 @@
     let milhoHoje = mRec.length ? C.mediaPond(mRec.map((x) => x.usd), mRec.map((x) => x.t)) : null, milhoRef = mRec.length ? "compras de 60 dias" : null;
     if (milhoHoje == null && milhoMes.size) { const k = [...milhoMes.keys()].sort().pop(); milhoHoje = milhoMes.get(k); milhoRef = "compras de " + window.Telas.F.mesAno(k + "-01"); }
     const frenteMilho = curvaMilho[0] || null;
+    // Chicago: centavos de dólar por bushel → US$/t (1 t de milho = 39,368 bushels)
+    const cme = (D.cme ? D.cme.contratos : []).filter((c) => c.venc >= M.hoje.slice(0, 8) + "01").slice(0, 8).map((c) => ({ cod: c.cod, venc: c.venc, cents: c.preco, usd: c.preco / 100 * 39.368,
+      var: c.anterior > 0 ? c.preco / c.anterior - 1 : null }));
     M.milho = { d: am.d, py: am.py, b3: am.b3, saz: sazMilho, basisAno: basisMilhoAno, curva: curvaMilho, frente: frenteMilho, milhoMes, milhoHoje, milhoRef,
-      tMes: mRec.reduce((s, x) => s + x.t, 0), contratos: D.yp.contratosMilho, basisNosso: milhoHoje != null && frenteMilho && frenteMilho.usd ? milhoHoje - frenteMilho.usd : null,
+      tMes: mRec.reduce((s, x) => s + x.t, 0), contratos: D.yp.contratosMilho, cme, cmeAtualizado: D.cme ? D.cme.atualizado : null, basisNosso: milhoHoje != null && frenteMilho && frenteMilho.usd ? milhoHoje - frenteMilho.usd : null,
       ultimoBasis: basisMilho.length ? basisMilho[basisMilho.length - 1] : null, inicioJanela };
 
     // ================================================================ reposição
@@ -148,21 +213,34 @@
       return { d: r.d, a180: fx && vivo ? r.m180 / fx / vivo - 1 : null, a360: fx && vivo ? r.m360 / fx / vivo - 1 : null };
     });
     const indD = ind.map((r) => r.d), indEm = ind.length ? C.ultimoAte(indD, ind) : () => null;
+    // base da comparação (ajustável): "vendedor" = preço por cabeça ÷ peso sem desbaste; "balanca" = ÷ peso de balança na chegada;
+    // "posto" = custo total (animal + frete + comissão) ÷ peso de balança. IVA tirado do nosso preço e comissão somada ao leilão, se informados.
+    const baseC = S.baseCompra || "vendedor", fIva = 1 + (+S.ivaCompras || 0), fCom = 1 + (+S.comissaoLeilao || 0);
     const compras = D.yp.compras.filter((c) => entre(c.peso, 60, 450) && entre(c.pkg, 4000, 45000) && (!c.dono || /RURAL/i.test(c.dono))).map((c) => {
+      const temBal = entre(c.pesoFaz, 60, 450);
+      const peso = baseC !== "vendedor" && temBal ? c.pesoFaz : c.peso;
+      const pcab = (baseC === "posto" && c.custoFaz > 0 ? c.custoFaz : c.pcab) / fIva, pkg = pcab / peso;
       const r = indEm(c.d), cc = r ? (c.sexo === "Fêmea" ? r.cF : r.cM) : null;
       const fx = entre(c.cambio, 4000, 9500) ? c.cambio : pygEm(c.d), nov = pyEm(c.d);
-      return Object.assign({}, c, { desvio: r && c.d >= indD[0] ? C.desvio(c.pkg, r.beta, cc, c.peso) : null, ref: r ? C.precoKg(r.beta, cc, c.peso) : null,
-        agio: fx && nov ? c.pkg / fx / (nov * S.rcVivo) - 1 : null });
-    });
+      const ref = r ? C.precoKg(r.beta, cc, peso) * fCom : null;
+      return Object.assign({}, c, { peso, pcab, pkg, pesoVend: c.peso, desvio: r && c.d >= indD[0] && ref ? Math.log(pkg / ref) : null, ref,
+        agio: fx && nov ? pkg / fx / (nov * S.rcVivo) - 1 : null });
+    }).filter((c) => entre(c.pkg, 4000, 45000));
     const corteCompras = C.somaDias(M.hoje, -S.diasCompras);
     const cRec = compras.filter((c) => c.d >= corteCompras && c.desvio != null);
     const desvioMes = C.porMes(compras.filter((c) => c.desvio != null).map((c) => ({ d: c.d, v: c.desvio, w: c.cab })));
     const cabMes = new Map(); compras.forEach((c) => cabMes.set(C.mesDe(c.d), (cabMes.get(C.mesDe(c.d)) || 0) + c.cab));
     const corteNuvem = C.somaDias(M.hoje, -7 * S.semanasNuvem);
+    const c12 = compras.filter((c) => c.d >= C.somaDias(M.hoje, -365) && c.desvio != null && c.sexo === "Macho");
+    const porFaixa = [["até 200 kg", (c) => c.peso < 200], ["200 a 260 kg", (c) => c.peso >= 200 && c.peso < 260], ["260 kg ou mais", (c) => c.peso >= 260]].map(([nome, f]) => {
+      const a = c12.filter(f); return { nome, n: a.length, cab: a.reduce((t, c) => t + c.cab, 0), desvio: a.length ? C.mediaPond(a.map((c) => c.desvio), a.map((c) => c.cab)) : null }; });
+    const nuvemM = D.lotes.filter((l) => l.d >= corteNuvem && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000) && l.sexo === "Macho");
+    const ajustePond = C.mqoPond(nuvemM.map((l) => l.peso), nuvemM.map((l) => l.pkg * l.peso), nuvemM.map((l) => (l.cab > 0 ? l.cab : 1)));
     M.repo = { ind, u, ant, agio, compras, comprasRec: compras.filter((c) => c.d >= corteCompras),
       desvioRec: cRec.length ? C.mediaPond(cRec.map((c) => c.desvio), cRec.map((c) => c.cab)) : null, cabRec: cRec.reduce((s, c) => s + c.cab, 0), nRec: cRec.length,
       desvioMes, cabMes, nuvem: D.lotes.filter((l) => l.d >= corteNuvem && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000) && (l.sexo === "Macho" || l.sexo === "Fêmea")),
-      agioHoje: agio.length ? agio[agio.length - 1] : null, inicioJanela };
+      agioHoje: agio.length ? agio[agio.length - 1] : null, inicioJanela, porFaixa, ajustePond, baseCompra: baseC,
+      negocios: D.lotes.filter((l) => l.d >= inicioJanela && l.sexo === "Macho" && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000)) };
 
     // ================================================================ lucratividade
     const base = C.mesclar(C.PADRAO, S.params || {});
@@ -182,6 +260,8 @@
       const venda = temVenda && vendaM.v[i] != null ? vendaM.v[i] : (pyM.v[i] != null ? pyM.v[i] + S.premioSemDados : base.venda);
       const extra = { desmamante: desmM.v[i], toreton: torM.v[i], cambio: fxM.v[i], venda };
       if (I) extra.conf = { gmd: I.gmd.v[i], rcFin: I.rcFin.v[i], consumo: I.consumo.v[i], custoNutr: I.custoNutr.v[i], gastosOp: I.gastosOp.v[i] };
+      // opção: a diária da RIP acompanha o custo nutricional do mês (mesma proporção da planilha: 1,39 ÷ 0,29)
+      if (I && S.ripIndexada === "sim" && I.custoNutr.v[i] > 0) extra.rip = { diaria: base.rip.diaria * I.custoNutr.v[i] / base.conf.custoNutr };
       return { mes: m, r: C.lucratividade(C.mesclar(base, extra)), mercado: pyM.v[i], vendaEstimada: !temVenda || vendaM.est[i], indEstimado: I ? I.gmd.est[i] : false };
     });
     // "hoje": preços mais recentes; indicadores = média dos 3 últimos meses fechados com abate
@@ -189,18 +269,33 @@
     const l3 = lotesInd.filter((v) => fechados.indexOf(C.mesDe(v.d)) >= 0);
     const m3 = (campo, a, b) => { const x = l3.filter((v) => entre(v[campo], a, b)); return x.length ? C.mediaPond(x.map((v) => v[campo]), x.map((v) => v.cab)) : null; };
     const indHoje = usarReal && l3.length ? { gmd: m3("gmd", 0.5, 2.6), rcFin: m3("rcFin", 0.48, 0.63), consumo: m3("cms", 5, 16), custoNutr: m3("custoNutr", 0.08, 0.7), gastosOp: m3("gastosOp", 0, 1.5) } : null;
-    const vendaAtual = vendaHoje != null ? vendaHoje : (pyHoje != null ? pyHoje + S.premioSemDados : base.venda);
+    const vendaAtual = +S.vendaManual > 0 ? +S.vendaManual : vendaHoje != null ? vendaHoje : (pyHoje != null ? pyHoje + S.premioSemDados : base.venda);
     const extraHoje = { desmamante: u ? u.m180 : null, toreton: u ? u.m360 : null, cambio: pygHoje, venda: vendaAtual };
     if (indHoje) extraHoje.conf = indHoje;
+    if (indHoje && S.ripIndexada === "sim" && indHoje.custoNutr > 0) extraHoje.rip = { diaria: base.rip.diaria * indHoje.custoNutr / base.conf.custoNutr };
     const pHoje = C.mesclar(base, extraHoje);
     const atual = C.lucratividade(pHoje);
     // sensibilidade: lucro global × preço do gordo × preço do bezerro
     const dv = [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6], db = [-0.15, -0.10, -0.05, 0, 0.05, 0.10, 0.15];
     const sens = { dv, db, z: db.map((b) => dv.map((v) => C.lucratividade(C.mesclar(pHoje, { venda: pHoje.venda + v, desmamante: pHoje.desmamante * (1 + b) })).global.lucro)) };
-    M.lucro = { serie: serie.slice(-60), atual, pHoje, base, indHoje, fechados, sens, usarReal, temVenda, vendaRef: vendaHoje != null ? (rec.length ? "média ponderada das vendas dos últimos 45 dias" : vendaRef) : (pyHoje != null ? "Valor Agro (sem venda nossa)" : "planilha"),
+    M.lucro = { serie: serie.slice(-60), atual, pHoje, base, indHoje, fechados, sens, usarReal, temVenda, vendaRef: +S.vendaManual > 0 ? "informado nas configurações" : vendaHoje != null ? (rec.length ? "média ponderada das vendas dos últimos 45 dias" : vendaRef) : (pyHoje != null ? "Valor Agro (sem venda nossa)" : "planilha"),
       padrao: C.lucratividade(base) };
+    // ================================================================ cotações do topo (verde ou vermelho pelo acumulado do dia)
+    const liq = (cs) => { const a = cs.filter((c) => c.ultimo != null); return a.length ? a.reduce((x, y) => ((y.aberto || 0) > (x.aberto || 0) ? y : x)) : (cs[0] || null); };
+    const fb = liq(D.b3.bgi.filter((c) => c.venc >= M.hoje)), fm = liq(D.b3.ccm.filter((c) => c.venc >= M.hoje));
+    const vaAnt = va.length > 1 ? (() => { for (let i = va.length - 2; i >= 0; i--) if (va[i].d < ult.d) return va[i].nov; return null; })() : null;
+    M.tk = [
+      { id: "boi", rot: "Boi PY", val: pyHoje, dec: 2, var: vaAnt ? pyHoje / vaAnt - 1 : null, dica: "Novillo Valor Agro, US$/kg carcaça; variação contra o dia anterior" },
+      brHoje ? { id: "boisp", rot: "Boi SP", val: brHoje.rs, dec: 2, var: brHoje.var, dica: "Indicador do Boi DATAGRO SP, R$/@ à vista, " + brHoje.d.slice(8, 10) + "/" + brHoje.d.slice(5, 7) + "; variação contra o dia anterior", opc: true } : null,
+      { id: "bez", rot: "Bezerro", val: u ? u.m180 : null, dec: 0, var: u && ant ? u.m180 / ant.m180 - 1 : null, dica: "Macho de 180 kg, Gs/kg vivo; variação contra a semana anterior", opc: true },
+      { id: "bgi", rot: fb ? fb.cod : "BGI", val: fb ? fb.preco : null, dec: 2, var: fb && fb.ultimo && fb.ajuste ? fb.ultimo / fb.ajuste - 1 : null, vivo: b3Aberta() && fb && fb.ultimo != null, dica: "Boi gordo futuro na B3, R$/@; variação contra o ajuste de ontem" },
+      { id: "ccm", rot: fm ? fm.cod : "CCM", val: fm ? fm.preco : null, dec: 2, var: fm && fm.ultimo && fm.ajuste ? fm.ultimo / fm.ajuste - 1 : null, vivo: b3Aberta() && fm && fm.ultimo != null, dica: "Milho futuro na B3, R$/saca; variação contra o ajuste de ontem" },
+      M.milho.cme.length ? { id: "cme", rot: "CME " + M.milho.cme[0].cod.slice(2), val: M.milho.cme[0].cents, dec: 0, var: M.milho.cme[0].var, dica: "Milho em Chicago, centavos de dólar por bushel", opc: true } : null,
+      M.cambio ? { id: "pyg", rot: "Gs/US$", val: M.cambio.ult.compra, val2: M.cambio.ult.venda, dec: 0, var: M.cambio.varDia, vivo: M.cambio.aberto, piscando: M.cambio.aberto, dica: "Câmbio BCP: compra · venda no corte das " + M.cambio.ult.h }
+        : (pygHoje ? { id: "pyg", rot: "Gs/US$", val: pygHoje, dec: 0, var: null, dica: "Câmbio de mercado" } : null),
+    ].filter((x) => x && x.val != null);
     return M;
   }
 
-  window.Modelo = { montar, mercadoAberto, agoraAssuncao };
+  window.Modelo = { montar, mercadoAberto, agoraAssuncao, b3Aberta };
 })();
