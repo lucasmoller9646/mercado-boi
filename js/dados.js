@@ -189,6 +189,8 @@
   async function ypoti(url, chave) {
     const vazio = { compras: [], vendas: [], milho: [], contratosMilho: [], cambioBcp: [], ligado: false };
     if (!url) { marca("ypoti", "desligado", "ponte não configurada"); marca("bcp", "desligado", "ponte não configurada"); return vazio; }
+    // a chave fica no navegador; dentro do portal ypoti.com/apps o navegador guarda à parte, então é preciso colar a chave lá também
+    if (!chave) { const msg = "falta a chave neste navegador (engrenagem)"; marca("ypoti", "erro", msg); marca("bcp", "erro", msg); return vazio; }
     marca("ypoti", "atualizando");
     try {
       const j = await pegar(url + (url.indexOf("?") < 0 ? "?" : "&") + "k=" + encodeURIComponent(chave || ""), "json", 90000);
@@ -269,7 +271,7 @@
       marca("ypoti", avisos.length ? "desatualizado" : "ok", avisos.length ? "sem: " + avisos.join(", ") :
         out.vendas.length + " lotes · " + out.compras.length + " compras");
       return out;
-    } catch (e) { marca("ypoti", "erro", String(e.message || e)); marca("bcp", "erro", "ponte fora do ar"); return vazio; }
+    } catch (e) { const msg = String(e.message || e); marca("ypoti", "erro", msg); marca("bcp", "erro", /chave/.test(msg) ? msg : "ponte fora do ar"); return vazio; }
   }
 
   window.Dados = { estado, ancoras, gordo, indicador, lotes, b3, cambio, ypoti, cambioBcp, cme, boiBr };

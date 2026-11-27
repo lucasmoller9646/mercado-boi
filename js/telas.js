@@ -437,7 +437,7 @@
   const notaDe = (v) => (v == null || !isFinite(v) ? null : NOTAS[v >= 1.2 ? 4 : v >= 0.4 ? 3 : v > -0.4 ? 2 : v > -1.2 ? 1 : 0]);
 
   function telaCambio(M) {
-    const X = M.cambio, r = rem(), semDados = "Aguardando o câmbio do BCP (ponte de dados não conectada).";
+    const X = M.cambio, r = rem(), semDados = M.S.chave ? "Aguardando o câmbio do BCP (ponte de dados não respondeu)." : "Falta a chave da ponte neste navegador: abra a engrenagem (⚙), cole a chave de acesso e salve.";
     const ids = ["g-cambio-hist", "g-cambio-termo", "g-cambio-dia", "g-cambio-ifr"];
     if (!X) {
       kpis("kpis-cambio", [{ rotulo: "Dólar BCP", valor: null, nota: "aguardando dados" }]);
