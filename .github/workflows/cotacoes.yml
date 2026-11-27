@@ -1,4 +1,4 @@
-# Guarda o Indicador do Boi DATAGRO do dia e atualiza o milho de Chicago (CME) para o painel.
+# Guarda o Indicador do Boi DATAGRO do dia (com a PTAX), o milho de Chicago (CME) e a série diária do dólar do BCP para o painel.
 name: Cotações do painel
 on:
   schedule:
@@ -11,16 +11,18 @@ concurrency: { group: cotacoes, cancel-in-progress: false }
 jobs:
   atualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Buscar cotações
         run: python3 tools/atualizar_cotacoes.py
+      - name: Dólar do BCP, série diária (histórico do termômetro)
+        run: python3 tools/cambio_historico.py || echo "BCP não respondeu; fica a série anterior"
       - name: Gravar no repositório
         run: |
-          if git diff --quiet -- data/; then echo "nada mudou"; exit 0; fi
+          if [ -z "$(git status --porcelain -- data/)" ]; then echo "nada mudou"; exit 0; fi
           git config user.name "robo-cotacoes"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/boi_br_diario.json data/cme_milho.json
-          git commit -m "Cotações: DATAGRO e CME $(date -u +%Y-%m-%dT%H:%MZ)"
+          git add data/boi_br_diario.json data/cme_milho.json data/pyg_historico.json
+          git commit -m "Cotações: DATAGRO, CME e dólar do BCP $(date -u +%Y-%m-%dT%H:%MZ)"
           git push
