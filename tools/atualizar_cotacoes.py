@@ -4,16 +4,25 @@ e as cotações do milho em Chicago (CME), que o navegador não consegue buscar 
 
 Escreve data/boi_br_diario.json e data/cme_milho.json. Só usa endereços públicos, sem credencial.
 """
-import json, os, sys, datetime as dt, urllib.request
+import json, os, sys, datetime as dt, urllib.request, urllib.error
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UA = {"User-Agent": "Mozilla/5.0 (mercado-boi; +https://lucasmoller9646.github.io/mercado-boi/)"}
 
 
-def pegar(url, tempo=30):
-    req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=tempo) as r:
-        return json.loads(r.read().decode("utf-8"))
+def pegar(url, tempo=30, tentativas=3):
+    """Busca JSON; diante de 429 (limite de acessos) espera o tempo que o servidor pede e tenta de novo, poucas vezes."""
+    import time, urllib.error
+    for k in range(tentativas):
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=tempo) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or k == tentativas - 1:
+                raise
+            espera = e.headers.get("Retry-After")
+            time.sleep(min(120, int(espera)) if espera and espera.isdigit() else 30 * (k + 1))
 
 
 def ler(nome, padrao):
