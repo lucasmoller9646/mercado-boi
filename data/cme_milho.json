@@ -1,1 +1,54 @@
-{"atualizado":null,"fonte":"","contratos":[]}
+{
+ "atualizado": "2026-11-27T03:18:24Z",
+ "fonte": "CME via Yahoo Finance (centavos de dólar por bushel)",
+ "contratos": [
+  {
+   "cod": "ZCZ26",
+   "venc": "2026-12-14",
+   "preco": 439.5,
+   "anterior": 434.5
+  },
+  {
+   "cod": "ZCH27",
+   "venc": "2027-03-14",
+   "preco": 456.25,
+   "anterior": 448.75
+  },
+  {
+   "cod": "ZCK27",
+   "venc": "2027-05-14",
+   "preco": 465.75,
+   "anterior": 457.75
+  },
+  {
+   "cod": "ZCN27",
+   "venc": "2027-07-14",
+   "preco": 474.0,
+   "anterior": 465.5
+  },
+  {
+   "cod": "ZCU27",
+   "venc": "2027-09-14",
+   "preco": 469.5,
+   "anterior": 462.0
+  },
+  {
+   "cod": "ZCZ27",
+   "venc": "2027-12-14",
+   "preco": 484.5,
+   "anterior": 476.25
+  },
+  {
+   "cod": "ZCH28",
+   "venc": "2028-03-14",
+   "preco": 498.25,
+   "anterior": 490.0
+  },
+  {
+   "cod": "ZCK28",
+   "venc": "2028-05-14",
+   "preco": 506.0,
+   "anterior": 497.75
+  }
+ ]
+}
