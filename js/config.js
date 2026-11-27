@@ -28,7 +28,9 @@ window.MB_CONFIG = {
     baseCompra: "vendedor", // nossas compras × indicador: "vendedor" (peso do vendedor), "balanca" (peso de balança), "posto" (custo posto fazenda ÷ balança)
     ivaCompras: 0,         // IVA embutido no nosso preço liquidado, a retirar na comparação (ex.: 0.05)
     comissaoLeilao: 0,     // comissão do comprador a somar ao preço de martelo do leilão (ex.: 0.03)
-    ripIndexada: "nao",    // "sim" = a diária da RIP acompanha o custo nutricional de cada mês
+    precoReposicao: "ypoti", // lucratividade: "ypoti" = o que pagamos nas compras; "leilao" = indicador dos leilões
+    custoRecria: 100,      // custo da recria com a RIP, US$/cab (apresentação Rentabilidade Histórica)
+    diasRecria: 365,       // duração da recria, só para a TIR
     atualizarB3: 2,        // minutos entre atualizações das cotações da B3 com o pregão aberto
   },
 };

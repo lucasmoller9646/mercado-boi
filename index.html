@@ -63,12 +63,14 @@
           <div class="corpo"><div class="grafico" id="g-repo-pesos"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:agio"><header><h2>Ágio da reposição sobre o gordo</h2><p>Kg vivo da reposição ÷ kg vivo do gordo − 1</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-agio"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:desvio"><header><h2>Compramos bem ou mal?</h2><p>Nossas compras contra o indicador, no peso e sexo de cada lote</p></header>
-          <div class="corpo"><div class="grafico" id="g-repo-desvio"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:nuvem"><header><h2>A curva de hoje: α + β · peso</h2><p>Lotes de leilão das últimas semanas (bolinha pelo nº de cabeças), retas do indicador e as nossas compras</p></header>
+        <article class="cartao vidro" style="grid-area:alfa"><header><h2>α · serviço da vaca</h2><p>Milhões de Gs por cabeça, macho e fêmea</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-alfa"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:nuvem"><header><h2>A curva de hoje: α + β · peso e a de 2º grau</h2><p>Lotes de leilão das últimas semanas (bolinha pelo nº de cabeças), as duas réguas e as nossas compras</p></header>
           <div class="corpo"><div class="grafico" id="g-repo-nuvem"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:ab"><header><h2>α e β no tempo</h2><p>Serviço da vaca e quilo produzido</p></header>
-          <div class="corpo"><div class="grafico" id="g-repo-ab"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:razao"><header><h2>Valor do kg produzido</h2><p>÷ preço do kg do animal</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-razao"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:beta"><header><h2>β · quilo produzido</h2><p>mil Gs/kg: reta e curva</p></header>
+          <div class="corpo"><div class="grafico" id="g-repo-beta"></div><p class="vazio" hidden></p></div></article>
       </div>
     </section>
 
@@ -79,11 +81,12 @@
         <article class="cartao vidro" style="grid-area:serie"><header><h2>Resultado de cada etapa</h2><p id="sub-lucro-serie">US$ por cabeça, com os preços e os indicadores de cada mês</p>
           <div id="alt-lucro" class="alterna" role="group" aria-label="Unidade do gráfico"><button data-modo="usd" aria-pressed="true">US$/cab</button><button data-modo="tir" aria-pressed="false">TIR</button></div></header>
           <div class="corpo"><div class="grafico" id="g-lucro-serie"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:equil"><header><h2>Preço de venda e ponto de equilíbrio</h2><p>US$ por kg de carcaça</p></header>
-          <div class="corpo"><div class="grafico" id="g-lucro-equilibrio"></div><p class="vazio" hidden></p></div></article>
+        <article class="cartao vidro" style="grid-area:oper"><header><h2>A operação do confinamento</h2><p id="sub-lucro-oper">US$ por cabeça</p>
+          <div id="alt-oper" class="alterna" role="group" aria-label="Custo de compra"><button data-modo="real" aria-pressed="true">custo real</button><button data-modo="mercado" aria-pressed="false">a mercado</button></div></header>
+          <div class="corpo"><div class="grafico" id="g-lucro-oper"></div><p class="vazio" hidden></p></div></article>
         <article class="cartao vidro" style="grid-area:sens"><header><h2>E se os preços mudarem?</h2><p id="sub-lucro-sens">Lucro do ciclo completo, US$ por cabeça</p></header>
           <div class="corpo"><div class="grafico" id="g-lucro-sens"></div><p class="vazio" hidden></p></div></article>
-        <article class="cartao vidro" style="grid-area:conta"><header><h2 id="tit-lucro-conta">A conta de hoje</h2><p>US$ por cabeça, motor da planilha Rentabilidade do Invernista</p><button id="bt-hoje" class="mini" hidden>voltar para hoje</button></header>
+        <article class="cartao vidro" style="grid-area:conta"><header><h2 id="tit-lucro-conta">A conta de hoje</h2><p>US$ por cabeça, pelo método da apresentação Rentabilidade Histórica</p><button id="bt-hoje" class="mini" hidden>voltar para hoje</button></header>
           <div class="corpo rolavel" id="conta-lucro"></div></article>
       </div>
     </section>

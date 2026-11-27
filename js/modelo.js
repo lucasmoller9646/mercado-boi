@@ -236,7 +236,12 @@
       const a = c12.filter(f); return { nome, n: a.length, cab: a.reduce((t, c) => t + c.cab, 0), desvio: a.length ? C.mediaPond(a.map((c) => c.desvio), a.map((c) => c.cab)) : null }; });
     const nuvemM = D.lotes.filter((l) => l.d >= corteNuvem && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000) && l.sexo === "Macho");
     const ajustePond = C.mqoPond(nuvemM.map((l) => l.peso), nuvemM.map((l) => l.pkg * l.peso), nuvemM.map((l) => (l.cab > 0 ? l.cab : 1)));
-    M.repo = { ind, u, ant, agio, compras, comprasRec: compras.filter((c) => c.d >= corteCompras),
+    // régua de 2º grau (forma alternativa) e o valor marginal do kg em 180 e 360 kg
+    const regua2 = C.reguaQuad(D.lotes, ind, { desde: C.somaDias(inicioJanela, -7) });
+    const quad = ind.filter((r) => regua2.has(r.d) && r.beta > 0).map((r) => { const g = regua2.get(r.d), q180 = C.pontoQuad(r.beta, g, 180), q360 = C.pontoQuad(r.beta, g, 360);
+      return { d: r.d, g, b180: q180.b, b360: q360.b, p180: q180.p, p360: q360.p, rQ180: q180.razao, rQ360: q360.razao,
+        rL180: r.cM > 0 ? 180 / (180 + r.cM) : null, rL360: r.cM > 0 ? 360 / (360 + r.cM) : null }; });
+    M.repo = { ind, u, ant, agio, compras, quad, quadHoje: quad.length ? quad[quad.length - 1] : null, comprasRec: compras.filter((c) => c.d >= corteCompras),
       desvioRec: cRec.length ? C.mediaPond(cRec.map((c) => c.desvio), cRec.map((c) => c.cab)) : null, cabRec: cRec.reduce((s, c) => s + c.cab, 0), nRec: cRec.length,
       desvioMes, cabMes, nuvem: D.lotes.filter((l) => l.d >= corteNuvem && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000) && (l.sexo === "Macho" || l.sexo === "Fêmea")),
       agioHoje: agio.length ? agio[agio.length - 1] : null, inicioJanela, porFaixa, ajustePond, baseCompra: baseC,

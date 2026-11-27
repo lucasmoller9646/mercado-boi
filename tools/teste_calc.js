@@ -77,5 +77,18 @@ ok("projeção leque cresce com a raiz do tempo", Math.log(pj.pontos[39].s80 / p
   const b = C.mqoMulti([[1, 1], [1, 2], [1, 3], [1, 4]], [3, 5, 7, 9]);
   perto("mqoMulti a", b[0], 1, 1e-9); perto("mqoMulti b", b[1], 2, 1e-9);
 }
+// ---- régua de 2º grau: lotes sintéticos com forma conhecida
+{
+  const perto = (nome, got, exp, tolAbs) => { const p = Math.abs(got - exp) <= tolAbs; if (!p) falhas++; console.log((p ? "ok   " : "FALHA") + " " + nome + ": " + (+got).toFixed(5) + " (esperado " + exp + ")"); };
+  const ind = [], lotes = []; let d = "2025-01-06";
+  for (let s = 0; s < 40; s++) { const beta = 10000 + s * 50; ind.push({ d, beta, fT: -0.05, fI: -0.03 });
+    for (let i = 0; i < 6; i++) { const w = 140 + ((s * 6 + i) * 37) % 260, fonte = ["Everdem", "Tropeando", "Invernada"][i % 3];
+      const f = fonte === "Tropeando" ? -0.05 : fonte === "Invernada" ? -0.03 : 0, fb = 0.25 * -0.05 + 0.25 * -0.03;
+      lotes.push({ d: C.somaDias(d, 2), sexo: "Macho", peso: w, fonte, pkg: beta * (1.1 + 90 / w - 0.0004 * w) * Math.exp(f - fb) }); }
+    d = C.somaDias(d, 7); }
+  const g = C.reguaQuad(lotes, ind).get(ind[39].d);
+  perto("régua 2º grau k", g.k, 1.1, 1e-6); perto("régua 2º grau c", g.c, 90, 1e-4); perto("régua 2º grau q", g.q, -0.0004, 1e-9);
+  const pt = C.pontoQuad(10000, g, 180); perto("β marginal em 180 kg", pt.b, 10000 * (1.1 - 2 * 0.0004 * 180), 1e-3);
+}
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);

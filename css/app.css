@@ -117,9 +117,9 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
 
 /* ---------- cartões de gráfico */
 .grade { flex: 1; min-height: 0; display: grid; gap: var(--vao); grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.grade-repo { grid-template-areas: "pesos agio desvio" "nuvem nuvem ab"; }
+.grade-repo { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-areas: "pesos pesos pesos pesos agio agio agio agio alfa alfa alfa alfa" "nuvem nuvem nuvem nuvem nuvem nuvem razao razao razao beta beta beta"; }
 .grade-cambio { grid-template-areas: "hist hist termo" "dia ifr tec"; grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr); }
-.grade-lucro { grid-template-areas: "serie serie conta" "equil sens conta"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); }
+.grade-lucro { grid-template-areas: "serie serie conta" "oper sens conta"; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); }
 .cartao { border-radius: var(--raio); display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: .75rem .9rem .6rem; overflow: hidden; }
 .tela.ativa .cartao { animation: sobe .8s cubic-bezier(.2,.7,.2,1) both; animation-delay: .18s; }
 .tela.ativa .cartao:nth-child(2) { animation-delay: .24s; } .tela.ativa .cartao:nth-child(3) { animation-delay: .3s; } .tela.ativa .cartao:nth-child(4) { animation-delay: .36s; }

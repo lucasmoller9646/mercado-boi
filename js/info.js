@@ -49,45 +49,45 @@
       conta: "Ágio = preço do kg vivo da reposição ÷ preço do kg vivo do gordo − 1. O gordo vem de carcaça para peso vivo com rendimento de " + pct(M.S.rcVivo) + "%.",
       ler: "Quanto o quilo do bezerro custa a mais que o quilo do boi pronto. Ágio alto aperta a margem de quem recria e engorda; ágio baixo é hora boa de repor.",
     }),
-    "g-repo-desvio": (M) => ({
-      fonte: "Nossas compras (BD Compras, lotes da Rural Bioenergia) contra o indicador dos leilões da mesma semana.",
-      conta: "Para cada compra: ln(nosso preço por kg ÷ preço do indicador no mesmo peso e sexo). Média do mês ponderada pelas cabeças. Base em uso: " + baseTxt[M.repo.baseCompra] + (M.S.ivaCompras > 0 ? "; IVA de " + (M.S.ivaCompras * 100).toFixed(1).replace(".", ",") + "% retirado do nosso preço" : "") + (M.S.comissaoLeilao > 0 ? "; comissão de " + (M.S.comissaoLeilao * 100).toFixed(1).replace(".", ",") + "% somada ao preço do leilão" : "") + ".",
-      ler: "Barra verde: compramos abaixo do mercado; vermelha: acima. Atenção ao que se compara: o preço de martelo do leilão não inclui a comissão do comprador nem o frete, e pode estar sem IVA; o nosso preço é o liquidado. Os ajustes ficam nas configurações (base da comparação, IVA e comissão)." +
-        (M.repo.porFaixa ? " Últimos 12 meses, machos: " + M.repo.porFaixa.filter((f) => f.desvio != null).map((f) => f.nome + " " + ((Math.exp(f.desvio) - 1) * 100 > 0 ? "+" : "") + ((Math.exp(f.desvio) - 1) * 100).toFixed(1).replace(".", ",") + "%").join(" · ") + "." : ""),
-    }),
     "g-repo-nuvem": (M) => ({
       fonte: "Lotes de leilão das últimas " + M.S.semanasNuvem + " semanas (aba BASE) e nossas compras dos últimos " + M.S.diasCompras + " dias.",
-      conta: "À esquerda, valor por cabeça = α + β · peso: α é o “serviço da vaca” (o que se paga pelo bezerro existir) e β, o valor do quilo produzido. À direita, a mesma reta em preço por quilo: β + α ÷ peso. As retas cheias são as do indicador da planilha, em que cada lote pesa igual; a tracejada branca é o mesmo ajuste ponderado pelas cabeças de cada lote.",
-      ler: "Bolinha laranja abaixo da reta azul: compramos mais barato que o mercado naquele peso. Se a tracejada fica abaixo da cheia, os lotes grandes estão saindo mais baratos que os pequenos.",
+      conta: "Reta: valor por cabeça = α + β · peso, como no indicador da planilha (cada lote pesa igual). Curva de 2º grau (violeta): valor por cabeça = β · (k · peso + c + d · peso²), com o mesmo β da semana e a mesma correção de fonte; k, c e d saem dos lotes de machos das 26 semanas anteriores (52 se houver menos de 60 lotes). A tracejada branca é a reta ponderada pelas cabeças de cada lote.",
+      ler: "À esquerda, valor por cabeça; à direita, o mesmo em preço por quilo. Onde a curva se afasta da reta, a reta erra o preço naquele peso. Bolinha laranja abaixo das linhas: compramos mais barato que o mercado naquele peso.",
     }),
-    "g-repo-ab": {
-      fonte: "Aba INDICADOR da planilha de reposição: α e β estimados toda semana com os lotes dos leilões.",
-      conta: "β em mil Gs por kg vivo; α em milhões de Gs por cabeça, um para macho e outro para fêmea.",
-      ler: "β acompanha o preço do boi gordo: é o valor do quilo. α é o ágio fixo por animal e sobe quando falta bezerro. Bezerro caro com β parado quer dizer escassez de cria, não boi valorizado.",
+    "g-repo-alfa": {
+      fonte: "Aba INDICADOR da planilha de reposição: α estimado toda semana com os lotes dos leilões, um para macho e outro para fêmea.",
+      conta: "α = β × c, em milhões de Gs por cabeça. É a parte do preço que não depende do peso.",
+      ler: "α é o “serviço da vaca”: o que se paga pelo bezerro existir. Sobe quando falta bezerro no mercado, mesmo com o quilo (β) parado.",
     },
-
-    // ------------------------------------------------------------ lucratividade
+    "g-repo-beta": {
+      fonte: "β da reta: aba INDICADOR. Curva em 180 e 360 kg: régua de 2º grau calculada no painel com os lotes da aba BASE (a mesma conta está na aba REGUA_2_GRAU da planilha).",
+      conta: "Na reta, o quilo a mais vale β em qualquer peso. Na curva, o quilo a mais vale a derivada do valor por cabeça: β · (k + 2 · d · peso), calculada em 180 e em 360 kg.",
+      ler: "Se a linha de 180 kg fica acima da de 360 kg, o quilo a mais vale mais no animal leve: o mercado paga mais por ganho no bezerro do que no toretón, e vice-versa. Na reta as duas seriam iguais a β.",
+    },
+    "g-repo-razao": {
+      fonte: "Régua de 2º grau (linhas cheias) e régua da planilha (tracejadas), semana a semana.",
+      conta: "Valor do kg a mais ÷ preço do kg do animal, no mesmo peso: β(peso) ÷ p(peso). Na reta é peso ÷ (peso + c). Em economia é a elasticidade do valor do animal ao peso; na literatura americana, o “value of gain” dividido pelo preço do bezerro.",
+      ler: "Mostra quanto de dinheiro cada kg produzido traz para cada guarani imobilizado em um kg do animal. 60% em 180 kg quer dizer que o kg engordado vale 60% do que custou cada kg do bezerro comprado: o resto do preço é o ágio por ele existir (α). Multiplicado pelo ganho diário ÷ peso, vira o retorno bruto diário sobre o capital do animal.",
+    },
     "g-lucro-serie": (M) => ({
-      fonte: "Motor da planilha Rentabilidade do Invernista (aba Recria e Engorda), refeito mês a mês com os preços daquele mês.",
-      conta: "Só três preços variam: bezerro de 180 kg e toretón de 360 kg (indicador dos leilões) e o nosso preço do gordo, mais o câmbio. " + (M.lucro.usarReal ? "GMD, rendimento, consumo, custo nutricional e gasto operacional do confinamento são os realizados no mês; meses sem abate são interpolados. " : "Os indicadores do confinamento são os fixos da planilha. ") +
-        "Os demais parâmetros ficam fixos (ajustáveis nas configurações). A TIR de cada etapa é (1 + lucro ÷ custo) elevado a 365 ÷ dias − 1; a do ciclo sai do fluxo de caixa.",
-      ler: "Use os botões para ver em dólares por cabeça ou em TIR ao ano. Clique num mês para fixá-lo: a tabela ao lado passa a mostrar a conta daquele mês. Cuidado com a RIP no passado: a diária de US$ " + M.lucro.base.rip.diaria.toFixed(2).replace(".", ",") + " é a de hoje" +
-        (M.S.ripIndexada === "sim" ? ", corrigida pelo custo nutricional de cada mês." : "; com toretón barato em dólar (2022 a 2024) a engorda de 60 kg não paga essa diária e a etapa aparece negativa. Nas configurações dá para fazer a diária acompanhar o custo nutricional do mês."),
+      fonte: "Mesmo método da apresentação Rentabilidade Histórica, refeito mês a mês: preços de compra da Ypoti (BD COMPRAS), venda, pesos, dias, diária e rendimento dos lotes abatidos (BD RESULT CONF), câmbio do mês.",
+      conta: "Recria (com a RIP): peso de entrada no confinamento × preço do toretón − 180 kg × preço do desmamante, tudo ÷ câmbio, menos US$ " + (M.lucro.PY.custoRecria) + " por cabeça. Confinamento: peso de saída × rendimento × preço do gordo − dias × diária − peso de entrada × preço do toretón ÷ câmbio. Sem juros, quebra nem mortalidade, como na conta manual. A TIR de cada etapa é (receita ÷ desembolso) elevado a 365 ÷ dias − 1; a do ciclo sai do fluxo de caixa.",
+      ler: "Use os botões para ver em dólares por cabeça ou em TIR ao ano. Clique num mês para fixá-lo: a tabela ao lado passa a mostrar a conta daquele mês. O preço do toretón divide o lucro entre as etapas; o ciclo completo não depende dele.",
     }),
-    "g-lucro-equilibrio": {
-      fonte: "Mesmo motor de cálculo; preço de venda dos Resultados do Confinamento e novillo do Valor Agro.",
-      conta: "Ponto de equilíbrio = tudo o que se desembolsa no ciclo (bezerro, pasto, RIP, cocho, juros) ÷ quilos de carcaça vendidos. É o preço do gordo que zera o lucro.",
-      ler: "Enquanto a linha laranja (nosso preço) estiver acima da magenta, o ciclo completo dá lucro; a distância entre as duas é a folga por quilo.",
+    "g-lucro-oper": {
+      fonte: "Planilha de resultados do confinamento (BD RESULT CONF), lotes da Rural Bioenergia, por mês de abate.",
+      conta: "Médias do mês ponderadas pelas cabeças: custo de entrada do animal (U$/Cab. Entrada), custo do confinamento (Custo Conf.) e receita total. No modo “a mercado”, a compra vira peso de entrada × preço do toretón do mês ÷ câmbio.",
+      ler: "A linha branca acima das áreas é margem; abaixo, prejuízo. O custo real de entrada mostra o resultado contábil do confinamento; a mercado, quanto o confinamento ganha se tivesse comprado o boi magro no dia.",
     },
     "g-lucro-sens": {
-      fonte: "Mesmo motor de cálculo, com os preços de hoje (ou do mês fixado).",
-      conta: "Refaz a conta do ciclo para sete preços do gordo (de −0,60 a +0,60 US$/kg) e sete preços do bezerro (de −15% a +15%).",
-      ler: "A célula com borda branca é a situação atual. Andar para a direita é o gordo subir; para cima, o bezerro encarecer. O verde mostra onde ainda há lucro.",
+      fonte: "Mesmo cálculo da conta de hoje (ou do mês fixado).",
+      conta: "Refaz o lucro do ciclo para sete preços do gordo (de −0,60 a +0,60 US$/kg) e sete preços do desmamante (de −15% a +15%).",
+      ler: "A célula com borda branca é a situação atual. Andar para a direita é o gordo subir; para cima, o desmamante encarecer. O verde mostra onde ainda há lucro.",
     },
     "conta-lucro": {
-      fonte: "Planilha Rentabilidade do Invernista, com os preços de mercado mais recentes e os indicadores do confinamento dos últimos três meses fechados.",
-      conta: "Cada etapa “compra” o animal da anterior a preço de mercado e o “vende” para a seguinte. No ciclo completo as transferências internas somem: fica a compra do bezerro, os custos de cada etapa e a venda do gordo.",
-      ler: "A coluna Ciclo é a operação inteira, do bezerro ao abate. A segunda tabela compara o que entrou na conta hoje com o que está na planilha original. Com um mês fixado no gráfico, aparece também a coluna daquele mês.",
+      fonte: "Apresentação Rentabilidade Histórica (conta manual), com os dados mais recentes.",
+      conta: "A recria compra o desmamante de 180 kg e entrega o toretón no peso de entrada do confinamento; o confinamento compra esse toretón ao preço de mercado e vende o gordo. No ciclo, a passagem interna se cancela.",
+      ler: "A coluna Ciclo é a operação inteira. A segunda tabela mostra os preços e a zootecnia que entraram; com um mês fixado no gráfico, aparece a coluna daquele mês ao lado da de hoje.",
     },
 
     // ------------------------------------------------------------ câmbio

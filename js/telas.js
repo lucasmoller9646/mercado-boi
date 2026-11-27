@@ -15,6 +15,9 @@
     dia: (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4),
   };
   const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 14;
+  // meses e dias em português nos eixos de tempo
+  echarts.registerLocale("PT", { time: { month: ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"],
+    monthAbbr: MES.map((m) => m[0].toUpperCase() + m.slice(1)), dayOfWeek: ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"], dayOfWeekAbbr: ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] } });
   const graficos = {}; // id → instância
   const opcoes = {};   // id → última opção (para reanimar ao entrar na tela)
 
@@ -64,7 +67,7 @@
       return;
     }
     el.hidden = false; if (aviso) aviso.hidden = true;
-    if (!graficos[id]) graficos[id] = echarts.init(el, null, { renderer: "canvas" });
+    if (!graficos[id]) graficos[id] = echarts.init(el, null, { renderer: "canvas", locale: "PT" });
     ajustarLegenda(el, opcao);
     opcoes[id] = opcao;
     graficos[id].setOption(opcao, true);
@@ -225,7 +228,7 @@
     kpis("kpis-reposicao", u ? [
       { rotulo: "Macho 180 kg", valor: u.m180, un: "Gs/kg", neutro: true, delta: a ? var_(u.m180, a.m180) : null, deltaTxt: a ? F.pct(Math.abs(var_(u.m180, a.m180)), 1) + " na semana" : "", nota: M.fx.pyg ? "· US$ " + F.n(u.m180 / M.fx.pyg, 2) : "" },
       { rotulo: "Macho 360 kg", valor: u.m360, un: "Gs/kg", neutro: true, delta: a ? var_(u.m360, a.m360) : null, deltaTxt: a ? F.pct(Math.abs(var_(u.m360, a.m360)), 1) + " na semana" : "", nota: M.fx.pyg ? "· US$ " + F.n(u.m360 / M.fx.pyg, 2) : "" },
-      { rotulo: "β · quilo produzido", valor: u.beta, un: "Gs/kg", nota: M.fx.pyg ? "US$ " + F.n(u.beta / M.fx.pyg, 2) + " por kg vivo" : "" },
+      { rotulo: "β · quilo produzido", valor: u.beta, un: "Gs/kg", nota: R.quadHoje ? "2º grau: " + F.n(R.quadHoje.b180, 0) + " em 180 kg · " + F.n(R.quadHoje.b360, 0) + " em 360 kg" : (M.fx.pyg ? "US$ " + F.n(u.beta / M.fx.pyg, 2) + " por kg vivo" : "") },
       { rotulo: "α · serviço da vaca (macho)", valor: u.aM / 1000, un: "mil Gs/cab", nota: "fêmea " + F.n(u.aF / 1000, 0) + " · peso do ágio aos 180 kg " + F.pct(u.aM / (u.aM + u.beta * 180), 0) },
       { rotulo: "Ágio do bezerro sobre o gordo", valor: ag ? ag.a180 : null, pct: true, dec: 0, sinal: true, nota: "180 kg, kg vivo · 360 kg " + F.pct(ag ? ag.a360 : null, 0, true) },
       { rotulo: "Nossas compras × mercado", valor: R.desvioRec != null ? Math.exp(R.desvioRec) - 1 : null, pct: true, dec: 1, sinal: true, destaque: true,
@@ -266,19 +269,13 @@
         nossasMes.length ? linha("Nossas compras (média do mês)", nossasMes, COR.ypoti, Object.assign({ showSymbol: true }, rotuloFim((v) => F.n(v, 0) + "%", COR.ypoti))) : null].filter(Boolean),
     }) : null, semDados);
 
-    // ---- nossas compras × indicador, mês a mês
-    const mm = [...R.desvioMes.keys()].sort().slice(-18);
-    desenhar("g-repo-desvio", mm.length ? base({
-      grid: { left: rem() * 0.4, right: rem() * 0.8, top: rem() * 2.6, bottom: rem() * 0.3, containLabel: true },
-      legend: Object.assign(base().legend, { data: [{ name: "Abaixo do mercado", itemStyle: { color: COR.bom } }, { name: "Acima do mercado", itemStyle: { color: COR.ruim } }] }),
-      xAxis: eixoX({ type: "category", data: mm.map((k) => F.mesAno(k + "-01")) }), yAxis: eixoY((v) => F.n(v, 0) + "%", { scale: false }),
-      tooltip: Object.assign(base().tooltip, { axisPointer: { type: "shadow", shadowStyle: { color: "rgba(255,255,255,.05)" } }, formatter: (ps) => { const k = mm[ps[0].dataIndex], v = Math.exp(R.desvioMes.get(k)) - 1;
-        return "<b>" + F.mesAno(k + "-01") + "</b><br>" + F.pct(v, 1, true) + " contra o indicador<br>" + F.n(R.cabMes.get(k), 0) + " cabeças compradas"; } }),
-      series: [{ name: "Abaixo do mercado", type: "bar", stack: "d", barMaxWidth: rem() * 1.6, itemStyle: { color: COR.bom, borderRadius: [0, 0, 4, 4] },
-        data: mm.map((k) => { const v = (Math.exp(R.desvioMes.get(k)) - 1) * 100; return v < 0 ? +v.toFixed(1) : null; }), label: { show: true, position: "bottom", color: COR.tinta, fontSize: rem() * 0.72, formatter: (p) => F.n(p.value, 0) } },
-      { name: "Acima do mercado", type: "bar", stack: "d", barMaxWidth: rem() * 1.6, itemStyle: { color: COR.ruim, borderRadius: [4, 4, 0, 0] },
-        data: mm.map((k) => { const v = (Math.exp(R.desvioMes.get(k)) - 1) * 100; return v >= 0 ? +v.toFixed(1) : null; }), label: { show: true, position: "top", color: COR.tinta, fontSize: rem() * 0.72, formatter: (p) => "+" + F.n(p.value, 0) } }],
-    }) : null, "Aguardando as compras da Ypoti (ponte de dados não conectada).");
+    // ---- α no tempo (serviço da vaca)
+    const daInd = (k, div) => ind.map((x) => [x.d, x[k] == null ? null : +(x[k] / div).toFixed(3)]);
+    desenhar("g-repo-alfa", ind.length ? base({
+      xAxis: eixoTempo(), yAxis: eixoY((v) => F.n(v, 1)),
+      tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : "Gs " + F.n(v, 2) + " milhões/cab") }),
+      series: [linha("α macho", daInd("aM", 1e6), COR.py, rotuloFim((v) => F.n(v, 2), COR.py)), linha("α fêmea", daInd("aF", 1e6), COR.magenta, rotuloFim((v) => F.n(v, 2), COR.magenta))],
+    }) : null, semDados);
 
     // ---- nuvem α + β·w (valor por cabeça) e hipérbole do ágio (preço por kg)
     if (u) {
@@ -291,11 +288,12 @@
       const nosso = (ix, fy) => ({ name: "Nossas compras", type: "scatter", xAxisIndex: ix, yAxisIndex: ix, z: 5, data: nos.map((c) => [c.peso, fy(c), c.d, c.cab, c.destino, c.pkg, c.desvio]), symbolSize: (v) => tam(v[3]),
         itemStyle: { color: COR.ypoti, opacity: 0.92, borderColor: "#06130C", borderWidth: 2 } });
       const reta = (nome, ix, f, cor) => ({ name: nome, type: "line", xAxisIndex: ix, yAxisIndex: ix, data: W.map((w) => [w, f(w)]), showSymbol: false, smooth: ix === 1, lineStyle: { width: 2.5, color: cor }, itemStyle: { color: cor }, z: 4, tooltip: { show: false } });
+      const gq = R.quadHoje && R.quadHoje.d === u.d ? R.quadHoje.g : null;
       const r = rem(), tip = (p) => { const v = p.value; return "<b>" + p.seriesName + "</b> · " + F.dia(v[2]) + "<br>" + (v[3] ? F.n(v[3], 0) + " cab · " : "") + F.n(v[0], 0) + " kg<br>Gs " + F.n(v[5], 0) + "/kg · Gs " + F.n(v[5] * v[0], 0) + "/cab" +
         (v[4] ? "<br><span style='opacity:.7'>" + v[4] + "</span>" : "") + (v[6] != null ? "<br>" + F.pct(Math.exp(v[6]) - 1, 1, true) + " contra o indicador" : ""); };
       desenhar("g-repo-nuvem", base({
         tooltip: Object.assign(base().tooltip, { trigger: "item", formatter: tip }),
-        legend: Object.assign(base().legend, { data: ["Leilões · macho", "Leilões · fêmea", "α + β·w macho", "α + β·w fêmea"].concat(R.ajustePond ? ["Macho ponderado por cabeças"] : []).concat(nos.length ? ["Nossas compras"] : []) }),
+        legend: Object.assign(base().legend, { data: ["Leilões · macho", "Leilões · fêmea", "α + β·w macho", "α + β·w fêmea"].concat(gq ? ["Macho, 2º grau"] : []).concat(R.ajustePond ? ["Macho ponderado por cabeças"] : []).concat(nos.length ? ["Nossas compras"] : []) }),
         grid: [{ left: r * 0.4, right: "52%", top: r * 3.4, bottom: r * 1.6, containLabel: true }, { left: "52%", right: r * 1.2, top: r * 3.4, bottom: r * 1.6, containLabel: true }],
         title: [{ text: "Valor por cabeça = α + β · peso   (milhões de Gs)", left: r * 0.4, top: r * 1.7, textStyle: { color: COR.t3, fontSize: r * 0.76, fontWeight: 400 } },
           { text: "Preço por quilo = β + α ÷ peso   (mil Gs/kg) · assíntota em β", left: "52%", top: r * 1.7, textStyle: { color: COR.t3, fontSize: r * 0.76, fontWeight: 400 } }],
@@ -307,129 +305,144 @@
           reta("α + β·w fêmea", 1, (w) => (u.beta + u.aF / w) / 1000, COR.magenta),
           Object.assign(reta("α + β·w macho", 1, (w) => (u.beta + u.aM / w) / 1000, COR.py), { markLine: { silent: true, symbol: "none", data: [{ yAxis: u.beta / 1000 }], lineStyle: { color: COR.t2, type: "dashed", width: 1.2 },
             label: { formatter: "β = " + F.n(u.beta, 0), color: COR.tinta, fontSize: r * 0.76, position: "insideStartTop" } } }),
-        ].concat(R.ajustePond ? [0, 1].map((ix) => Object.assign(reta("Macho ponderado por cabeças", ix, (w) => (ix ? (R.ajustePond.beta + R.ajustePond.alfa / w) / 1000 : (R.ajustePond.alfa + R.ajustePond.beta * w) / 1e6), COR.tinta), { lineStyle: { width: 1.6, color: COR.tinta, type: "dashed" } })) : [])
+        ].concat(gq ? [0, 1].map((ix) => Object.assign(reta("Macho, 2º grau", ix, (w) => (ix ? u.beta * (gq.k + gq.c / w + gq.q * w) / 1000 : u.beta * (gq.k * w + gq.c + gq.q * w * w) / 1e6), COR.violeta),
+          { smooth: true, lineStyle: { width: 2.2, color: COR.violeta } })) : [])
+          .concat(R.ajustePond ? [0, 1].map((ix) => Object.assign(reta("Macho ponderado por cabeças", ix, (w) => (ix ? (R.ajustePond.beta + R.ajustePond.alfa / w) / 1000 : (R.ajustePond.alfa + R.ajustePond.beta * w) / 1e6), COR.tinta), { lineStyle: { width: 1.6, color: COR.tinta, type: "dashed" } })) : [])
           .concat(nos.length ? [nosso(0, (c) => c.pcab / 1e6), nosso(1, (c) => c.pkg / 1000)] : []),
       }));
 
-      // ---- séries de β e de α (duas grades, uma unidade cada)
-      const dados = (k, div) => ind.map((x) => [x.d, x[k] == null ? null : +(x[k] / div).toFixed(2)]);
-      desenhar("g-repo-ab", base({
-        legend: Object.assign(base().legend, { data: ["β", "α macho", "α fêmea"] }),
-        tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : F.n(v, 1)) }),
-        axisPointer: { link: [{ xAxisIndex: "all" }] },
-        grid: [{ left: r * 0.4, right: r * 3.6, top: r * 3.4, height: "30%", containLabel: true }, { left: r * 0.4, right: r * 3.6, top: "64%", bottom: r * 0.3, containLabel: true }],
-        title: [{ text: "β · quilo produzido (mil Gs/kg)", left: r * 0.4, top: r * 1.7, textStyle: { color: COR.t3, fontSize: r * 0.76, fontWeight: 400 } },
-          { text: "α · serviço da vaca (milhões de Gs/cab)", left: r * 0.4, top: "55%", textStyle: { color: COR.t3, fontSize: r * 0.76, fontWeight: 400 } }],
-        xAxis: [eixoTempo({ gridIndex: 0, axisLabel: { show: false } }), eixoTempo({ gridIndex: 1 })],
-        yAxis: [eixoY((v) => F.n(v, 0), { gridIndex: 0, splitNumber: 3 }), eixoY((v) => F.n(v, 1), { gridIndex: 1, splitNumber: 3 })],
-        series: [linha("β", dados("beta", 1000), COR.amarelo, Object.assign({ xAxisIndex: 0, yAxisIndex: 0 }, rotuloFim((v) => F.n(v, 1), COR.amarelo))),
-          linha("α macho", dados("aM", 1e6), COR.py, Object.assign({ xAxisIndex: 1, yAxisIndex: 1 }, rotuloFim((v) => F.n(v, 2), COR.py))),
-          linha("α fêmea", dados("aF", 1e6), COR.magenta, Object.assign({ xAxisIndex: 1, yAxisIndex: 1 }, rotuloFim((v) => F.n(v, 2), COR.magenta)))],
+      // ---- β: a reta (igual em todo peso) e a curva de 2º grau (derivada em 180 e 360 kg)
+      const Q = R.quad.filter((q) => q.d >= ini), mil = (v) => (v == null || !isFinite(v) ? null : +(v / 1000).toFixed(2));
+      desenhar("g-repo-beta", base({
+        xAxis: eixoTempo(), yAxis: eixoY((v) => F.n(v, 0)),
+        tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : "Gs " + F.n(v * 1000, 0) + "/kg") }),
+        series: [linha("β da reta", daInd("beta", 1000), COR.amarelo, Object.assign({ lineStyle: { width: 2.6, color: COR.amarelo } }, rotuloFim((v) => F.n(v, 1), COR.amarelo)))]
+          .concat(Q.length ? [linha("Curva em 180 kg", Q.map((q) => [q.d, mil(q.b180)]), COR.rampa[0], rotuloFim((v) => F.n(v, 1), COR.rampa[0])),
+            linha("Curva em 360 kg", Q.map((q) => [q.d, mil(q.b360)]), COR.rampa[3], rotuloFim((v) => F.n(v, 1), COR.rampa[3]))] : []),
       }));
-    } else { desenhar("g-repo-nuvem", null, semDados); desenhar("g-repo-ab", null, semDados); }
+      // ---- valor do kg produzido ÷ preço do kg do animal (elasticidade do valor ao peso), em 180 e 360 kg
+      const pc = (v) => (v == null || !isFinite(v) ? null : +(v * 100).toFixed(1));
+      desenhar("g-repo-razao", Q.length ? base({
+        xAxis: eixoTempo(), yAxis: eixoY((v) => F.n(v, 0) + "%"),
+        legend: Object.assign(base().legend, { data: ["180 kg", "360 kg", { name: "Pela reta", itemStyle: { color: COR.t3 } }] }),
+        tooltip: Object.assign(base().tooltip, { formatter: (ps) => { const q = Q[ps[0].dataIndex]; if (!q) return "";
+          return "<b>Semana de " + F.dia(q.d) + "</b><br>180 kg: o kg a mais vale " + F.pct(q.rQ180, 0) + " do preço do kg<br>&nbsp;&nbsp;Gs " + F.n(q.b180, 0) + " ÷ Gs " + F.n(q.p180, 0) +
+            "<br>360 kg: " + F.pct(q.rQ360, 0) + " · Gs " + F.n(q.b360, 0) + " ÷ Gs " + F.n(q.p360, 0) + "<br><span style='opacity:.7'>pela reta: " + F.pct(q.rL180, 0) + " e " + F.pct(q.rL360, 0) + "</span>"; } }),
+        series: [linha("180 kg", Q.map((q) => [q.d, pc(q.rQ180)]), COR.rampa[0], rotuloFim((v) => F.n(v, 0) + "%", COR.rampa[0])),
+          linha("360 kg", Q.map((q) => [q.d, pc(q.rQ360)]), COR.rampa[3], rotuloFim((v) => F.n(v, 0) + "%", COR.rampa[3])),
+          linha("Pela reta", Q.map((q) => [q.d, pc(q.rL180)]), COR.rampa[0], { lineStyle: { width: 1.2, type: "dashed", color: COR.rampa[0], opacity: 0.7 } }),
+          linha("Pela reta", Q.map((q) => [q.d, pc(q.rL360)]), COR.rampa[3], { lineStyle: { width: 1.2, type: "dashed", color: COR.rampa[3], opacity: 0.7 } })],
+      }) : null, "Faltam lotes para estimar a curva de 2º grau.");
+    } else { ["g-repo-nuvem", "g-repo-beta", "g-repo-razao"].forEach((id) => desenhar(id, null, semDados)); }
   }
 
   // ================================================================== TELA 3 — lucratividade
   const lembra = { ler(k, p) { try { return localStorage.getItem(k) || p; } catch (e) { return p; } }, gravar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* só nesta sessão */ } } };
-  let lucroModo = lembra.ler("mb:lucroModo", "usd"), mesFixo = null, ultimoM = null;
+  let lucroModo = lembra.ler("mb:lucroModo", "usd"), operModo = lembra.ler("mb:operModo", "real"), mesFixo = null, ultimoM = null;
   /** Solta o mês fixado pelo clique (ao trocar de tela a conta volta para hoje). */
   function soltarMes() { mesFixo = null; }
 
   function telaLucro(M) {
     ultimoM = M;
     const L = M.lucro, r = rem(), fix = mesFixo ? L.serie.find((s) => s.mes === mesFixo) : null;
-    const A = fix ? fix.r : L.atual, G = A.global, p = fix ? fix.r.entrada : L.pHoje, quando = fix ? F.mesAno(fix.mes + "-01") : "hoje";
+    const A = fix ? fix.r : L.atual, G = A.global, R = A.recria, K = A.conf, p = fix ? fix.r.entrada : L.pHoje, quando = fix ? F.mesAno(fix.mes + "-01") : "hoje";
     const u0 = (v) => F.n(v, 0), sufixo = fix ? " · " + quando : "";
     kpis("kpis-lucro", [
-      { rotulo: "Lucro do ciclo completo" + sufixo, valor: G.lucro, dec: 0, un: "US$/cab", destaque: true, nota: "bezerro de 180 kg até o abate · " + F.n(G.ciclo, 0) + " dias" },
-      { rotulo: "TIR do ciclo" + sufixo, valor: G.tir, pct: true, dec: 1, nota: "ao ano · juros da conta " + F.pct(p.juros, 1) },
-      { rotulo: "Recria a pasto", valor: A.recria.lucro, dec: 0, un: "US$/cab", nota: "TIR " + F.pct(A.recria.tir, 0) + " · " + F.n(A.recria.dias, 0) + " dias" },
-      { rotulo: "RIP", valor: A.rip.lucro, dec: 0, un: "US$/cab", nota: "TIR " + F.pct(A.rip.tir, 0) + " · " + F.n(A.rip.dias, 0) + " dias" },
-      { rotulo: "Confinamento", valor: A.conf.lucro, dec: 0, un: "US$/cab", nota: "TIR " + F.pct(A.conf.tir, 0) + " · " + F.n(A.conf.dias, 0) + " dias" },
-      { rotulo: "Ponto de equilíbrio do gordo", valor: G.pontoEquilibrio, dec: 2, un: "US$/kg carcaça", nota: (fix ? "preço do mês " : "nosso preço ") + F.n(p.venda, 2) + " · folga " + F.n(p.venda - G.pontoEquilibrio, 2) },
+      { rotulo: "Lucro do ciclo completo" + sufixo, valor: G.lucro, dec: 0, un: "US$/cab", destaque: true, nota: "desmamante de 180 kg até o abate · " + F.n(G.ciclo, 0) + " dias" },
+      { rotulo: "TIR do ciclo" + sufixo, valor: G.tir, pct: true, dec: 1, nota: "ao ano, sobre o que foi desembolsado" },
+      { rotulo: "Recria (com a RIP)", valor: R.lucro, dec: 0, un: "US$/cab", nota: "TIR " + F.pct(R.tir, 0) + " · 180 → " + F.n(R.pesoFim, 0) + " kg" },
+      { rotulo: "Confinamento", valor: K.lucro, dec: 0, un: "US$/cab", nota: "TIR " + F.pct(K.tir, 0) + " · " + F.n(K.dias, 0) + " dias de cocho" },
+      { rotulo: "Ponto de equilíbrio do gordo", valor: G.equilibrio, dec: 2, un: "US$/kg carcaça", nota: (fix ? "preço do mês " : "nosso preço ") + F.n(p.venda, 2) + " · folga " + F.n(p.venda - G.equilibrio, 2) },
+      { rotulo: "Equilíbrio só do confinamento", valor: K.equilibrio, dec: 2, un: "US$/kg carcaça", nota: "comprando o toretón a " + F.n(p.toreton, 0) + " Gs/kg" },
     ]);
 
-    // ---- lucro (US$/cab) ou TIR (ao ano) de cada etapa; clicar num mês fixa a conta naquele mês
+    // ---- resultado (US$/cab) ou TIR (ao ano) de cada etapa; clicar num mês fixa a conta naquele mês
     const S = L.serie, x = S.map((s) => s.mes + "-15"), tir = lucroModo === "tir";
     const val = (s, k) => { const e = s.r[k], v = tir ? (e.tir == null ? null : e.tir * 100) : e.lucro; return v == null || !isFinite(v) ? null : +v.toFixed(1); };
     const fy = tir ? (v) => F.n(v, 0) + "%" : u0;
     const marcaMes = fix ? [{ xAxis: fix.mes + "-15", lineStyle: { color: COR.tinta, width: 1.5, type: "solid" }, label: { show: true, formatter: quando, color: COR.tinta, fontSize: r * 0.78, position: "insideEndTop", backgroundColor: "rgba(6,19,12,.6)", padding: [2, 5], borderRadius: 4 } }] : [];
     const etapa = (nome, k, cor, extra) => linha(nome, S.map((s, i) => [x[i], val(s, k)]), cor, Object.assign(rotuloFim(fy, cor), extra || {}));
-    document.getElementById("sub-lucro-serie").textContent = tir ? "TIR ao ano de cada etapa, com os preços e os indicadores de cada mês" : "US$ por cabeça, com os preços e os indicadores de cada mês";
+    document.getElementById("sub-lucro-serie").textContent = tir ? "TIR ao ano de cada etapa, com os preços e a zootecnia de cada mês" : "US$ por cabeça, com os preços e a zootecnia de cada mês";
     document.querySelectorAll("#alt-lucro button").forEach((bt) => bt.setAttribute("aria-pressed", String(bt.dataset.modo === lucroModo)));
     desenhar("g-lucro-serie", S.length > 1 ? base({
       xAxis: eixoTempo(), yAxis: eixoY(fy, { scale: false }),
       tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : tir ? F.n(v, 0) + "% ao ano" : "US$ " + F.n(v, 0) + "/cab") }),
-      series: [etapa("Ciclo completo", "global", COR.tinta, { lineStyle: { width: 3, color: COR.tinta }, z: 5 }), etapa("Recria a pasto", "recria", COR.br), etapa("RIP", "rip", COR.amarelo),
+      series: [etapa("Ciclo completo", "global", COR.tinta, { lineStyle: { width: 3, color: COR.tinta }, z: 5 }), etapa("Recria (com a RIP)", "recria", COR.br),
         etapa("Confinamento", "conf", COR.violeta, { markLine: { silent: true, symbol: "none", data: [{ yAxis: 0, lineStyle: { color: COR.eixo, width: 1 }, label: { show: false } }].concat(marcaMes) } })],
-    }) : null, "A série de reposição não respondeu.");
+    }) : null, "Sem lotes abatidos para montar a série (a ponte de dados não respondeu).");
     ligarFundo("g-lucro-serie", (dataX) => {
       const alvo = new Date(dataX).toISOString().slice(0, 7), perto = S.reduce((a, s) => (Math.abs(C.difDias(s.mes + "-15", alvo + "-15")) < Math.abs(C.difDias(a.mes + "-15", alvo + "-15")) ? s : a), S[0]);
       mesFixo = perto.mes === mesFixo || perto.mes === S[S.length - 1].mes ? null : perto.mes; telaLucro(ultimoM);
     });
 
-    desenhar("g-lucro-equilibrio", S.length > 1 ? base({
-      xAxis: eixoTempo(), yAxis: eixoY((v) => F.n(v, 1)),
-      tooltip: Object.assign(base().tooltip, { valueFormatter: (v) => (v == null ? "–" : "US$ " + F.n(v, 2) + "/kg") }),
-      series: [linha(L.temVenda ? "Nosso preço de venda" : "Preço usado (Valor Agro)", S.map((s, i) => [x[i], +s.r.entrada.venda.toFixed(3)]), COR.ypoti, rotuloFim((v) => F.n(v, 2), COR.ypoti)),
-        linha("Ponto de equilíbrio do ciclo", S.map((s, i) => [x[i], +s.r.global.pontoEquilibrio.toFixed(3)]), COR.magenta, Object.assign(rotuloFim((v) => F.n(v, 2), COR.magenta), marcaMes.length ? { markLine: { silent: true, symbol: "none", data: marcaMes } } : {}))]
-        .concat(L.temVenda ? [linha("Mercado (Valor Agro)", S.map((s, i) => [x[i], s.mercado == null ? null : +s.mercado.toFixed(3)]), COR.py, { lineStyle: { width: 1.5, color: COR.py, type: "dashed" } })] : []),
-    }) : null, "A série de reposição não respondeu.");
+    // ---- a operação do confinamento mês a mês (réplica do gráfico da apresentação): compra + engorda contra a receita
+    const mercado = operModo === "mercado", Op = S.filter((s) => s.oper.receita != null && s.oper.engorda != null && (mercado || s.oper.compra != null));
+    const xo = Op.map((s) => s.mes + "-15"), compra = Op.map((s) => +(mercado ? s.oper.compraMercado : s.oper.compra).toFixed(1));
+    const corCompra = "#a8dcc3", corEngorda = "#2f8a5f";
+    document.querySelectorAll("#alt-oper button").forEach((bt) => bt.setAttribute("aria-pressed", String(bt.dataset.modo === operModo)));
+    document.getElementById("sub-lucro-oper").textContent = mercado ? "US$/cab, toretón a preço do mês" : "US$/cab, custos e receita reais";
+    desenhar("g-lucro-oper", Op.length > 1 ? base({
+      xAxis: eixoTempo(), yAxis: eixoY(u0, { scale: false }),
+      legend: Object.assign(base().legend, { data: [mercado ? "Compra do boi magro (toretón do mês)" : "Custo de compra do boi magro", "Custo de engorda", "Receita com a venda"] }),
+      tooltip: Object.assign(base().tooltip, { formatter: (ps) => { const i = ps[0].dataIndex, s = Op[i], c = compra[i], e = s.oper.engorda, v = s.oper.receita;
+        return "<b>" + F.mesAno(s.mes + "-01") + "</b><br>Compra do boi magro: US$ " + u0(c) + "<br>Engorda: US$ " + u0(e) + "<br>Receita: US$ " + u0(v) + "<br><b>Margem: US$ " + u0(v - c - e) + "/cab</b>"; } }),
+      series: [
+        { name: mercado ? "Compra do boi magro (toretón do mês)" : "Custo de compra do boi magro", type: "line", stack: "custo", data: xo.map((d, i) => [d, compra[i]]), symbol: "none", lineStyle: { width: 0 }, areaStyle: { color: corCompra, opacity: 0.55 }, itemStyle: { color: corCompra }, smooth: 0.3 },
+        { name: "Custo de engorda", type: "line", stack: "custo", data: xo.map((d, i) => [d, +Op[i].oper.engorda.toFixed(1)]), symbol: "none", lineStyle: { width: 0 }, areaStyle: { color: corEngorda, opacity: 0.85 }, itemStyle: { color: corEngorda }, smooth: 0.3 },
+        linha("Receita com a venda", xo.map((d, i) => [d, +Op[i].oper.receita.toFixed(1)]), COR.tinta, Object.assign({ lineStyle: { width: 2.6, color: COR.tinta }, smooth: 0.3, z: 5 }, rotuloFim(u0, COR.tinta),
+          marcaMes.length ? { markLine: { silent: true, symbol: "none", data: marcaMes } } : {})),
+      ],
+    }) : null, "Sem resultados de confinamento para montar o gráfico.");
 
-    // ---- sensibilidade (lucro do ciclo × preço do gordo × preço do bezerro), no mês fixado ou hoje
-    const sens = fix ? { dv: L.sens.dv, db: L.sens.db, z: L.sens.db.map((b) => L.sens.dv.map((v) => C.lucratividade(C.mesclar(p, { venda: p.venda + v, desmamante: p.desmamante * (1 + b) })).global.lucro)) } : L.sens;
+    // ---- sensibilidade (lucro do ciclo × preço do gordo × preço do desmamante), no mês fixado ou hoje
+    const sens = fix ? { dv: L.sens.dv, db: L.sens.db, z: L.sens.db.map((b) => L.sens.dv.map((v) => C.lucroYpoti(C.mesclar(p, { venda: p.venda + v, desmamante: p.desmamante * (1 + b) })).global.lucro)) } : L.sens;
     const z = sens.z, flat = [].concat.apply([], z), lim = Math.max.apply(null, flat.map(Math.abs)) || 1;
     document.getElementById("sub-lucro-sens").textContent = "Lucro do ciclo completo, US$ por cabeça" + (fix ? ", com os preços de " + quando : "");
     desenhar("g-lucro-sens", base({
       grid: { left: r * 0.4, right: r * 0.6, top: r * 1.9, bottom: r * 1.8, containLabel: true }, legend: { show: false },
-      tooltip: Object.assign(base().tooltip, { trigger: "item", formatter: (q) => "Gordo a US$ " + F.n(p.venda + sens.dv[q.value[0]], 2) + "/kg<br>Bezerro a Gs " + F.n(p.desmamante * (1 + sens.db[q.value[1]]), 0) + "/kg<br><b>US$ " + F.n(q.value[2], 0) + "/cab</b>" }),
+      tooltip: Object.assign(base().tooltip, { trigger: "item", formatter: (q) => "Gordo a US$ " + F.n(p.venda + sens.dv[q.value[0]], 2) + "/kg<br>Desmamante a Gs " + F.n(p.desmamante * (1 + sens.db[q.value[1]]), 0) + "/kg<br><b>US$ " + F.n(q.value[2], 0) + "/cab</b>" }),
       xAxis: eixoX({ type: "category", data: sens.dv.map((d) => F.n(p.venda + d, 2)), name: "preço do gordo (US$/kg carcaça)", nameLocation: "middle", nameGap: r * 1.7, nameTextStyle: { color: COR.t3, fontSize: r * 0.74 }, splitArea: { show: false } }),
-      yAxis: { type: "category", data: sens.db.map((d) => F.n(p.desmamante * (1 + d) / 1000, 1)), name: "bezerro 180 kg (mil Gs/kg)", nameTextStyle: { color: COR.t3, fontSize: r * 0.74, align: "left" }, nameGap: r * 0.5,
+      yAxis: { type: "category", data: sens.db.map((d) => F.n(p.desmamante * (1 + d) / 1000, 1)), name: "desmamante (mil Gs/kg)", nameTextStyle: { color: COR.t3, fontSize: r * 0.74, align: "left" }, nameGap: r * 0.5,
         axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: COR.t3, fontSize: r * 0.76 } },
       visualMap: { show: false, min: -lim, max: lim, dimension: 2, inRange: { color: ["#b23233", "#5a3030", "#2c3330", "#1f5a2a", "#0c8f22"] } },
       series: [{ type: "heatmap", data: [].concat.apply([], z.map((lin, j) => lin.map((v, i) => (i === 3 && j === 3 ? { value: [i, j, +v.toFixed(0)], itemStyle: { borderColor: COR.tinta, borderWidth: 3 } } : [i, j, +v.toFixed(0)])))), itemStyle: { borderColor: "rgba(6,19,12,.9)", borderWidth: 2, borderRadius: 5 },
         label: { show: true, color: COR.tinta, fontSize: r * 0.8, fontWeight: 600, formatter: (q) => F.n(q.value[2], 0) }, emphasis: { itemStyle: { borderColor: COR.tinta } } }],
     }));
 
-    // ---- a conta (como na planilha): de hoje ou do mês fixado
-    const R = A.recria, I = A.rip, K = A.conf, d0 = (v) => F.n(v, 0), H = L.atual, ph = L.pHoje, b = L.base, P0 = L.padrao;
-    const lin = (rot, a, b2, c, g, cls) => "<tr" + (cls ? ' class="' + cls + '"' : "") + "><th>" + rot + "</th><td>" + a + "</td><td>" + b2 + "</td><td>" + c + "</td><td>" + g + "</td></tr>";
-    const comp = (nome, vMes, vHoje, vPlan, dec, un) => "<tr><th>" + nome + "</th>" + (fix ? "<td class='forte'>" + F.n(vMes, dec) + (un || "") + "</td>" : "") +
-      "<td class='" + (fix ? "apagado" : "forte") + "'>" + F.n(vHoje, dec) + (un || "") + "</td><td class='apagado'>" + F.n(vPlan, dec) + (un || "") + "</td></tr>";
+    // ---- a conta (como na apresentação): de hoje ou do mês fixado
+    const H = L.atual, ph = L.pHoje;
+    const lin = (rot, a, b2, g, cls) => "<tr" + (cls ? ' class="' + cls + '"' : "") + "><th>" + rot + "</th><td>" + a + "</td><td>" + b2 + "</td><td>" + g + "</td></tr>";
+    const comp = (nome, vMes, vHoje, dec, un) => "<tr><th>" + nome + "</th>" + (fix ? "<td class='forte'>" + F.n(vMes, dec) + (un || "") + "</td>" : "") +
+      "<td class='" + (fix ? "apagado" : "forte") + "'>" + F.n(vHoje, dec) + (un || "") + "</td></tr>";
     document.getElementById("tit-lucro-conta").textContent = fix ? "A conta de " + quando : "A conta de hoje";
     document.getElementById("bt-hoje").hidden = !fix;
     document.getElementById("conta-lucro").innerHTML =
-      '<table class="conta"><thead><tr><th></th><th>Recria</th><th>RIP</th><th>Confin.</th><th>Ciclo</th></tr></thead><tbody>' +
-      lin("Peso de entrada → saída (kg)", d0(R.pesoIni) + " → " + d0(R.pesoFim), d0(I.pesoIni) + " → " + d0(I.pesoFim), d0(K.pesoIni) + " → " + d0(K.pesoFim), d0(R.pesoIni) + " → " + d0(K.pesoFim)) +
-      lin("Dias", d0(R.dias), d0(I.dias), d0(K.dias), d0(G.ciclo)) +
-      lin("Receita líquida", d0(R.receita), d0(I.receita), d0(K.receita), d0(K.receita), "sep") +
-      lin("Compra do animal", d0(R.compra), d0(I.compra), d0(K.compra), d0(R.compra)) +
-      lin("Produção / nutrição", d0(R.producao), d0(I.producao), d0(K.nutricional), d0(R.producao + I.producao + K.nutricional)) +
-      lin("Operacional", "–", "–", d0(K.operacional), d0(K.operacional)) +
-      lin("Financeiro", d0(R.financeiro), d0(I.financeiro), d0(K.financeiro), d0(R.financeiro + I.financeiro + K.financeiro)) +
-      lin("Outros", d0(R.outros), d0(I.outros), d0(K.outros), d0(R.outros + I.outros + K.outros)) +
-      lin("Lucro (US$/cab)", d0(R.lucro), d0(I.lucro), d0(K.lucro), d0(G.lucro), "total") +
-      lin("Lucro anualizado", d0(R.lucroAno), d0(I.lucroAno), d0(K.lucroAno), d0(G.lucroAno)) +
-      lin("TIR ao ano", F.pct(R.tir, 0), F.pct(I.tir, 0), F.pct(K.tir, 0), F.pct(G.tir, 1)) +
+      '<table class="conta"><thead><tr><th></th><th>Recria</th><th>Confin.</th><th>Ciclo</th></tr></thead><tbody>' +
+      lin("Peso de entrada → saída (kg)", u0(R.pesoIni) + " → " + u0(R.pesoFim), u0(K.pesoIni) + " → " + u0(K.pesoFim), u0(R.pesoIni) + " → " + u0(K.pesoFim)) +
+      lin("Dias", u0(R.dias), u0(K.dias), u0(G.ciclo)) +
+      lin("Receita", u0(R.receita), u0(K.receita), u0(K.receita), "sep") +
+      lin("Compra do animal", u0(R.compra), u0(K.compra), u0(R.compra)) +
+      lin("Custo da etapa", u0(R.custo), u0(K.engorda), u0(R.custo + K.engorda)) +
+      lin("Lucro (US$/cab)", u0(R.lucro), u0(K.lucro), u0(G.lucro), "total") +
+      lin("TIR ao ano", F.pct(R.tir, 0), F.pct(K.tir, 0), F.pct(G.tir, 1)) +
       "</tbody></table>" +
-      '<table class="conta premissas"><thead><tr><th>O que entrou na conta</th>' + (fix ? "<th>" + quando + "</th>" : "") + "<th>Hoje</th><th>Planilha</th></tr></thead><tbody>" +
-      comp("Bezerro 180 kg (Gs/kg)", p.desmamante, ph.desmamante, b.desmamante, 0) + comp("Toretón 360 kg (Gs/kg)", p.toreton, ph.toreton, b.toreton, 0) +
-      comp("Toretón gordo, saída da RIP (Gs/kg)", A.toretonGordo, H.toretonGordo, P0.toretonGordo, 0) +
-      comp("Gordo, nosso preço (US$/kg)", p.venda, ph.venda, b.venda, 2) + comp("Câmbio (Gs/US$)", p.cambio, ph.cambio, b.cambio, 0) +
-      comp("Diária da RIP (US$/cab-dia)", p.rip.diaria, ph.rip.diaria, b.rip.diaria, 2) +
-      comp("GMD no confinamento (kg)", p.conf.gmd, ph.conf.gmd, b.conf.gmd, 2) + comp("Rendimento final", p.conf.rcFin * 100, ph.conf.rcFin * 100, b.conf.rcFin * 100, 1, "%") +
-      comp("Consumo (kg MS/dia)", p.conf.consumo, ph.conf.consumo, b.conf.consumo, 1) + comp("Custo nutricional (US$/kg MS)", p.conf.custoNutr, ph.conf.custoNutr, b.conf.custoNutr, 3) +
-      comp("Gastos operacionais (US$/cab-dia)", p.conf.gastosOp, ph.conf.gastosOp, b.conf.gastosOp, 2) + comp("Custo do kg de carcaça produzido (US$)", K.custoKgProd, H.conf.custoKgProd, P0.conf.custoKgProd, 2) +
+      '<table class="conta premissas"><thead><tr><th>O que entrou na conta</th>' + (fix ? "<th>" + quando + "</th>" : "") + "<th>Hoje</th></tr></thead><tbody>" +
+      comp("Desmamante 180 kg (Gs/kg)", p.desmamante, ph.desmamante, 0) + comp("Toretón, entrada do confinamento (Gs/kg)", p.toreton, ph.toreton, 0) +
+      comp("Gordo, nosso preço (US$/kg carcaça)", p.venda, ph.venda, 2) + comp("Câmbio (Gs/US$)", p.cambio, ph.cambio, 0) +
+      comp("Custo da recria (US$/cab)", p.custoRecria, ph.custoRecria, 0) +
+      comp("Peso de entrada no confinamento (kg)", p.pesoEntrada, ph.pesoEntrada, 0) + comp("Peso de saída (kg)", p.pesoSaida, ph.pesoSaida, 0) +
+      comp("Rendimento de carcaça", p.rc * 100, ph.rc * 100, 1, "%") + comp("Dias de cocho", p.dias, ph.dias, 0) +
+      comp("Diária, dieta e operacional (US$/cab)", p.diaria, ph.diaria, 2) + comp("Custo do kg ganho no cocho (US$)", K.custoKgGanho, H.conf.custoKgGanho, 2) +
       "</tbody></table>" +
       '<table class="conta premissas"><thead><tr><th>Fluxo de caixa do ciclo</th><th>Dia</th><th>US$/cab</th></tr></thead><tbody>' +
       G.fluxos.map((f) => "<tr><th>" + f.evento + "</th><td>" + F.n(f.dia, 0) + "</td><td>" + (f.valor > 0 ? "+" : "") + F.n(f.valor, 0) + "</td></tr>").join("") +
       "<tr class='total'><th>Lucro · TIR " + F.pct(G.tir, 1) + " ao ano</th><td>" + F.n(G.ciclo, 0) + "</td><td>" + F.n(G.lucro, 0) + "</td></tr></tbody></table>" +
-      '<p class="nota-conta">' + (fix ? "Conta refeita com os preços médios de " + quando + ": reposição pelo indicador dos leilões, câmbio médio do mês e " +
-          (fix.vendaEstimada ? "preço do gordo estimado (mês sem venda nossa na planilha)" : "a nossa venda média do mês") + (L.usarReal ? "; indicadores do confinamento dos lotes abatidos no mês" + (fix.indEstimado ? " (interpolados, sem abate)" : "") : "") +
-          ". Os parâmetros de recria e RIP são os de hoje" + (M.S.ripIndexada === "sim" ? ", com a diária da RIP acompanhando o custo nutricional do mês." : "; por isso a RIP de anos de preço baixo aparece pior do que foi.") :
-        (L.indHoje ? "Indicadores do confinamento: média ponderada dos lotes abatidos em " + L.fechados.map((m) => F.mesAno(m + "-01")).join(", ") + " (meses fechados)." :
-          "Indicadores do confinamento: valores fixos da planilha" + (M.S.indicadores === "realizado" ? " (os resultados do confinamento ainda não chegaram)." : ".")) +
-        " Preço do gordo: " + L.vendaRef + ". Clique num mês do gráfico para ver a conta daquele mês.") + "</p>";
+      '<p class="nota-conta">' + (fix ? "Conta de " + quando + ": " + (L.usaYpoti ? "desmamante e toretón pelo que a Ypoti pagou no mês (ou na última compra)" : "desmamante e toretón pelo indicador dos leilões") +
+          ", câmbio médio do mês, " + (fix.vendaEstimada ? "preço do gordo estimado (mês sem venda nossa)" : "a nossa venda média do mês") +
+          (fix.zootEstimada ? " e zootecnia interpolada (mês sem abate)." : " e pesos, dias, diária e rendimento dos lotes abatidos no mês.") :
+        "Hoje: " + (L.usaYpoti ? "desmamante e toretón pela média das compras da Ypoti dos últimos 60 dias" : "desmamante e toretón pelo indicador dos leilões") + "; zootecnia dos lotes abatidos em " +
+          L.fechados.map((m) => F.mesAno(m + "-01")).join(", ") + " (" + F.n(L.nLotes, 0) + " cab); preço do gordo: " + L.vendaRef + ".") +
+      " A recria leva a RIP junto, a custo fixo por cabeça, como na apresentação Rentabilidade Histórica. Clique num mês do gráfico para ver a conta daquele mês.</p>";
   }
 
   // ================================================================== TELA 4 — câmbio (BCP) e análise técnica
@@ -591,6 +604,7 @@
 
   // ------------------------------------------------------------------ controles dentro dos cartões
   document.getElementById("alt-lucro").addEventListener("click", (e) => { const bt = e.target.closest("button[data-modo]"); if (!bt) return; lucroModo = bt.dataset.modo; lembra.gravar("mb:lucroModo", lucroModo); if (ultimoM) telaLucro(ultimoM); });
+  document.getElementById("alt-oper").addEventListener("click", (e) => { const bt = e.target.closest("button[data-modo]"); if (!bt) return; operModo = bt.dataset.modo; lembra.gravar("mb:operModo", operModo); if (ultimoM) telaLucro(ultimoM); });
   document.getElementById("bt-hoje").addEventListener("click", () => { mesFixo = null; if (ultimoM) telaLucro(ultimoM); });
 
   window.Telas = { F, COR, telaGordo, telaReposicao, telaLucro, telaCambio, cotacoes, caberCotacoes, piscar, reanimar, redimensionar, contar, soltarMes };
