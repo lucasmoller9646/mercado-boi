@@ -242,44 +242,55 @@
       agioHoje: agio.length ? agio[agio.length - 1] : null, inicioJanela, porFaixa, ajustePond, baseCompra: baseC,
       negocios: D.lotes.filter((l) => l.d >= inicioJanela && l.sexo === "Macho" && entre(l.peso, 60, 450) && entre(l.pkg, 4000, 45000)) };
 
-    // ================================================================ lucratividade
-    const base = C.mesclar(C.PADRAO, S.params || {});
-    const primeiro = ind.length ? C.mesDe(ind[0].d) : mesAtual;
+    // ================================================================ lucratividade (método da conta manual "Rentabilidade Histórica")
+    // recria (com a RIP) a custo fixo por cabeça; confinamento com pesos, dias, diária, RC e preço reais do mês; transferência ao preço do toretón.
+    const PY = C.mesclar(C.PADRAO_YPOTI, { custoRecria: +S.custoRecria > 0 ? +S.custoRecria : C.PADRAO_YPOTI.custoRecria, diasRecria: +S.diasRecria > 0 ? +S.diasRecria : C.PADRAO_YPOTI.diasRecria });
+    const lotesInd = vendasToro.filter((v) => (S.lotesPreco === "todos" || v.rural) && entre(v.pesoIni, 200, 520) && entre(v.pesoFim, 300, 750));
+    const mesesLotes = [...new Set(lotesInd.map((v) => C.mesDe(v.d)))].sort();
+    const primeiro = mesesLotes.length ? mesesLotes[Math.max(0, mesesLotes.length - 72)] : (ind.length ? C.mesDe(ind[0].d) : mesAtual);
     const meses = C.mesesEntre(primeiro, mesAtual);
-    const desmM = C.preencher(meses, C.porMes(ind.map((r) => ({ d: r.d, v: r.m180 }))));
-    const torM = C.preencher(meses, C.porMes(ind.map((r) => ({ d: r.d, v: r.m360 }))));
+    const serieL = (campo, a, b) => C.preencher(meses, C.porMes(lotesInd.filter((v) => entre(v[campo], a, b)).map((v) => ({ d: v.d, v: v[campo], w: v.cab }))));
+    const Z = { pe: serieL("pesoIni", 200, 520), ps: serieL("pesoFim", 300, 750), rc: serieL("rcFin", 0.48, 0.63), dias: serieL("dias", 40, 220), diaria: serieL("diaria", 1, 6) };
+    // o que a operação do confinamento realmente custou e rendeu no mês (planilha de resultados), sem preencher meses vazios
+    const real = (campo) => C.porMes(lotesInd.filter((v) => v[campo] > 0).map((v) => ({ d: v.d, v: v[campo], w: v.cab })));
+    const realEnt = real("entrada"), realConf = real("custoConf"), realRec = real("receita");
+    // preço da reposição: o que a Ypoti pagou (machos; desmamante < 200 kg, senão 200–250; toretón > 300 kg, senão 250–300) ou o indicador dos leilões
+    const comprasM = D.yp.compras.filter((c) => c.sexo === "Macho" && (!c.dono || /RURAL/i.test(c.dono)) && entre(c.pkg, 4000, 45000) && entre(c.peso, 60, 450));
+    const classe = (f) => C.porMes(comprasM.filter(f).map((c) => ({ d: c.d, v: c.pkg, w: c.cab })));
+    const junta = (a, b) => { const m = new Map(b); a.forEach((v, k) => m.set(k, v)); return m; };
+    const ypDesm = junta(classe((c) => c.peso < 200), classe((c) => c.peso >= 200 && c.peso < 250));
+    const ypTor = junta(classe((c) => c.peso > 300), classe((c) => c.peso >= 250 && c.peso <= 300));
+    const ffill = (mapa) => { let ult = null; const pri = [...mapa.keys()].sort()[0]; return meses.map((m) => { if (mapa.has(m)) ult = mapa.get(m); return ult != null ? ult : (pri ? mapa.get(pri) : null); }); };
+    const usaYpoti = S.precoReposicao !== "leilao" && ypDesm.size > 0 && ypTor.size > 0;
+    const desmM = usaYpoti ? ffill(ypDesm) : C.preencher(meses, C.porMes(ind.map((r) => ({ d: r.d, v: r.m180 })))).v;
+    const torM = usaYpoti ? ffill(ypTor) : C.preencher(meses, C.porMes(ind.map((r) => ({ d: r.d, v: r.m360 })))).v;
     const fxM = C.preencher(meses, C.porMes(fxD.map((d, i) => ({ d, v: fxV[i] }))));
     const pyM = C.preencher(meses, C.porMes(pyD.map((d, i) => ({ d, v: pyV[i] }))));
     const vendaM = C.preencher(meses, vendaMes);
     const temVenda = vendaMes.size > 0;
-    const lotesInd = vendasToro.filter((v) => S.lotesPreco === "todos" || v.rural);
-    const serieInd = (campo, a, b) => C.preencher(meses, C.porMes(lotesInd.filter((v) => entre(v[campo], a, b)).map((v) => ({ d: v.d, v: v[campo], w: v.cab }))));
-    const usarReal = S.indicadores === "realizado" && lotesInd.length > 0;
-    const I = usarReal ? { gmd: serieInd("gmd", 0.5, 2.6), rcFin: serieInd("rcFin", 0.48, 0.63), consumo: serieInd("cms", 5, 16), custoNutr: serieInd("custoNutr", 0.08, 0.7), gastosOp: serieInd("gastosOp", 0, 1.5) } : null;
     const serie = meses.map((m, i) => {
-      const venda = temVenda && vendaM.v[i] != null ? vendaM.v[i] : (pyM.v[i] != null ? pyM.v[i] + S.premioSemDados : base.venda);
-      const extra = { desmamante: desmM.v[i], toreton: torM.v[i], cambio: fxM.v[i], venda };
-      if (I) extra.conf = { gmd: I.gmd.v[i], rcFin: I.rcFin.v[i], consumo: I.consumo.v[i], custoNutr: I.custoNutr.v[i], gastosOp: I.gastosOp.v[i] };
-      // opção: a diária da RIP acompanha o custo nutricional do mês (mesma proporção da planilha: 1,39 ÷ 0,29)
-      if (I && S.ripIndexada === "sim" && I.custoNutr.v[i] > 0) extra.rip = { diaria: base.rip.diaria * I.custoNutr.v[i] / base.conf.custoNutr };
-      return { mes: m, r: C.lucratividade(C.mesclar(base, extra)), mercado: pyM.v[i], vendaEstimada: !temVenda || vendaM.est[i], indEstimado: I ? I.gmd.est[i] : false };
+      const venda = temVenda && vendaM.v[i] != null ? vendaM.v[i] : (pyM.v[i] != null ? pyM.v[i] + S.premioSemDados : PY.venda);
+      const p = C.mesclar(PY, { desmamante: desmM[i], toreton: torM[i], cambio: fxM.v[i], venda, pesoEntrada: Z.pe.v[i], pesoSaida: Z.ps.v[i], rc: Z.rc.v[i], dias: Z.dias.v[i], diaria: Z.diaria.v[i] });
+      const r = C.lucroYpoti(p);
+      return { mes: m, r, mercado: pyM.v[i], vendaEstimada: !temVenda || vendaM.est[i], zootEstimada: Z.pe.est[i],
+        oper: { compra: realEnt.has(m) ? realEnt.get(m) : null, compraMercado: r.conf.compra, engorda: realConf.has(m) ? realConf.get(m) : null, receita: realRec.has(m) ? realRec.get(m) : null } };
     });
-    // "hoje": preços mais recentes; indicadores = média dos 3 últimos meses fechados com abate
-    const fechados = [...new Set(lotesInd.map((v) => C.mesDe(v.d)))].filter((m) => m < mesAtual).sort().slice(-3);
+    // "hoje": preços mais recentes; zootecnia = média dos 3 últimos meses fechados com abate
+    const fechados = mesesLotes.filter((m) => m < mesAtual).slice(-3);
     const l3 = lotesInd.filter((v) => fechados.indexOf(C.mesDe(v.d)) >= 0);
     const m3 = (campo, a, b) => { const x = l3.filter((v) => entre(v[campo], a, b)); return x.length ? C.mediaPond(x.map((v) => v[campo]), x.map((v) => v.cab)) : null; };
-    const indHoje = usarReal && l3.length ? { gmd: m3("gmd", 0.5, 2.6), rcFin: m3("rcFin", 0.48, 0.63), consumo: m3("cms", 5, 16), custoNutr: m3("custoNutr", 0.08, 0.7), gastosOp: m3("gastosOp", 0, 1.5) } : null;
-    const vendaAtual = +S.vendaManual > 0 ? +S.vendaManual : vendaHoje != null ? vendaHoje : (pyHoje != null ? pyHoje + S.premioSemDados : base.venda);
-    const extraHoje = { desmamante: u ? u.m180 : null, toreton: u ? u.m360 : null, cambio: pygHoje, venda: vendaAtual };
-    if (indHoje) extraHoje.conf = indHoje;
-    if (indHoje && S.ripIndexada === "sim" && indHoje.custoNutr > 0) extraHoje.rip = { diaria: base.rip.diaria * indHoje.custoNutr / base.conf.custoNutr };
-    const pHoje = C.mesclar(base, extraHoje);
-    const atual = C.lucratividade(pHoje);
-    // sensibilidade: lucro global × preço do gordo × preço do bezerro
+    const recentes = (f, dias) => { const x = comprasM.filter((c) => f(c) && c.d >= C.somaDias(M.hoje, -dias)); return x.length ? C.mediaPond(x.map((c) => c.pkg), x.map((c) => c.cab)) : null; };
+    const desmHoje = usaYpoti ? (recentes((c) => c.peso < 200, 60) || recentes((c) => c.peso < 250, 60) || desmM[desmM.length - 1]) : (u ? u.m180 : null);
+    const torHoje = usaYpoti ? (recentes((c) => c.peso > 300, 60) || recentes((c) => c.peso >= 250, 60) || torM[torM.length - 1]) : (u ? u.m360 : null);
+    const vendaAtual = +S.vendaManual > 0 ? +S.vendaManual : vendaHoje != null ? vendaHoje : (pyHoje != null ? pyHoje + S.premioSemDados : PY.venda);
+    const pHoje = C.mesclar(PY, { desmamante: desmHoje, toreton: torHoje, cambio: pygHoje, venda: vendaAtual,
+      pesoEntrada: m3("pesoIni", 200, 520), pesoSaida: m3("pesoFim", 300, 750), rc: m3("rcFin", 0.48, 0.63), dias: m3("dias", 40, 220), diaria: m3("diaria", 1, 6) });
+    const atual = C.lucroYpoti(pHoje);
+    // sensibilidade: lucro do ciclo × preço do gordo × preço do desmamante
     const dv = [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6], db = [-0.15, -0.10, -0.05, 0, 0.05, 0.10, 0.15];
-    const sens = { dv, db, z: db.map((b) => dv.map((v) => C.lucratividade(C.mesclar(pHoje, { venda: pHoje.venda + v, desmamante: pHoje.desmamante * (1 + b) })).global.lucro)) };
-    M.lucro = { serie: serie.slice(-60), atual, pHoje, base, indHoje, fechados, sens, usarReal, temVenda, vendaRef: +S.vendaManual > 0 ? "informado nas configurações" : vendaHoje != null ? (rec.length ? "média ponderada das vendas dos últimos 45 dias" : vendaRef) : (pyHoje != null ? "Valor Agro (sem venda nossa)" : "planilha"),
-      padrao: C.lucratividade(base) };
+    const sens = { dv, db, z: db.map((b) => dv.map((v) => C.lucroYpoti(C.mesclar(pHoje, { venda: pHoje.venda + v, desmamante: pHoje.desmamante * (1 + b) })).global.lucro)) };
+    M.lucro = { serie: serie.slice(-60), atual, pHoje, PY, fechados, sens, temVenda, usaYpoti, nLotes: l3.reduce((t, v) => t + v.cab, 0),
+      vendaRef: +S.vendaManual > 0 ? "informado nas configurações" : vendaHoje != null ? (rec.length ? "média ponderada das vendas dos últimos 45 dias" : vendaRef) : (pyHoje != null ? "Valor Agro (sem venda nossa)" : "padrão") };
     // ================================================================ cotações do topo (verde ou vermelho pelo acumulado do dia)
     const liq = (cs) => { const a = cs.filter((c) => c.ultimo != null); return a.length ? a.reduce((x, y) => ((y.aberto || 0) > (x.aberto || 0) ? y : x)) : (cs[0] || null); };
     const fb = liq(D.b3.bgi.filter((c) => c.venc >= M.hoje)), fm = liq(D.b3.ccm.filter((c) => c.venc >= M.hoje));

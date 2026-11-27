@@ -305,6 +305,46 @@
     return { pontos: out, volDia: sd, tendDia: mt };
   }
 
+  // ---------------------------------------------------------------- lucratividade Ypoti (método da conta manual, "Rentabilidade Histórica")
+  /** Padrões da conta manual: recria (com a RIP dentro) a custo fixo por cabeça, sem juros, quebra nem mortalidade. */
+  const PADRAO_YPOTI = { pesoIni: 180, custoRecria: 100, diasRecria: 365, desmamante: 24000, toreton: 19000, cambio: 6460, venda: 5.8,
+    pesoEntrada: 360, pesoSaida: 523, rc: 0.566, dias: 118, diaria: 2.7 };
+
+  /** Conta da apresentação "Rentabilidade Histórica" (US$/cab):
+      recria = peso de entrada no confinamento × toretón − 180 kg × desmamante (÷ câmbio) − custo fixo da recria;
+      confinamento = peso de saída × RC × preço de venda − dias × diária − peso de entrada × toretón ÷ câmbio. */
+  function lucroYpoti(p) {
+    const fx = p.cambio, R = {}, K = {}, G = {};
+    R.pesoIni = p.pesoIni; R.pesoFim = p.pesoEntrada; R.dias = p.diasRecria;
+    R.compra = (p.pesoIni * p.desmamante) / fx; R.custo = p.custoRecria; R.receita = (p.pesoEntrada * p.toreton) / fx;
+    R.lucro = R.receita - R.compra - R.custo; R.investido = R.compra + R.custo;
+    R.tir = R.investido > 0 && R.receita > 0 && R.dias > 0 ? Math.pow(R.receita / R.investido, 365 / R.dias) - 1 : null;
+    K.pesoIni = p.pesoEntrada; K.pesoFim = p.pesoSaida; K.dias = p.dias; K.kgCarc = p.pesoSaida * p.rc;
+    K.compra = R.receita; K.engorda = p.dias * p.diaria; K.receita = K.kgCarc * p.venda;
+    K.lucro = K.receita - K.compra - K.engorda; K.investido = K.compra + K.engorda;
+    K.tir = K.investido > 0 && K.receita > 0 && K.dias > 0 ? Math.pow(K.receita / K.investido, 365 / K.dias) - 1 : null;
+    K.equilibrio = K.kgCarc > 0 ? K.investido / K.kgCarc : null;
+    K.custoKgGanho = p.pesoSaida > p.pesoEntrada ? K.engorda / (p.pesoSaida - p.pesoEntrada) : null;
+    G.lucro = R.lucro + K.lucro; G.ciclo = R.dias + K.dias; G.investido = R.investido + K.engorda;
+    G.fluxos = [{ evento: "Compra do desmamante e custo da recria", dia: 0, valor: -R.investido },
+      { evento: "Custo de engorda no confinamento", dia: R.dias, valor: -K.engorda },
+      { evento: "Venda do gordo", dia: G.ciclo, valor: K.receita }];
+    G.tir = xtir(G.fluxos); G.equilibrio = K.kgCarc > 0 ? G.investido / K.kgCarc : null;
+    return { recria: R, conf: K, global: G, entrada: p };
+  }
+
+  /** Mínimos quadrados com várias variáveis (e pesos opcionais): X = [[x1, x2, ...]], y = [...]. Devolve os coeficientes ou null. */
+  function mqoMulti(X, y, w) {
+    const k = X.length ? X[0].length : 0; if (!k || X.length <= k) return null;
+    const A = Array.from({ length: k }, () => new Array(k + 1).fill(0));
+    for (let i = 0; i < X.length; i++) { const wi = w ? w[i] : 1; if (!(wi > 0) || !isFinite(y[i])) continue;
+      for (let a = 0; a < k; a++) { for (let b = 0; b < k; b++) A[a][b] += wi * X[i][a] * X[i][b]; A[a][k] += wi * X[i][a] * y[i]; } }
+    for (let c = 0; c < k; c++) { let m = c; for (let r = c + 1; r < k; r++) if (Math.abs(A[r][c]) > Math.abs(A[m][c])) m = r;
+      if (Math.abs(A[m][c]) < 1e-12) return null; [A[c], A[m]] = [A[m], A[c]];
+      for (let r = 0; r < k; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let j = c; j <= k; j++) A[r][j] -= f * A[c][j]; } }
+    return A.map((lin, i) => lin[k] / lin[i]);
+  }
+
   /** Cópia funda simples dos parâmetros com substituições (obj de mesmo formato, só o que muda). */
   function mesclar(base, extra) {
     const o = JSON.parse(JSON.stringify(base));
@@ -318,5 +358,5 @@
   }
 
   return { data, num, media, mediaPond, quantil, mesDe, anoDe, somaDias, difDias, segundaDe, mesesEntre, ultimoAte, porMes, preencher,
-    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar };
+    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar, PADRAO_YPOTI, lucroYpoti, mqoMulti };
 });

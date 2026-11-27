@@ -63,5 +63,19 @@ const serieT = Array.from({ length: 80 }, (_, i) => 100 * Math.exp(0.001 * i + 0
 const pj = C.projetar(serieT, 42); eq("projeção pontos", pj.pontos.length, 42);
 eq("projeção ordem das faixas", pj.pontos.every((x) => x.i80 < x.i50 && x.i50 < x.med && x.med < x.s50 && x.s50 < x.s80), true);
 ok("projeção leque cresce com a raiz do tempo", Math.log(pj.pontos[39].s80 / pj.pontos[39].med) / Math.log(pj.pontos[9].s80 / pj.pontos[9].med), 2, 1e-9);
+
+// ---- conta manual da apresentação "Rentabilidade Histórica" (out/2025): recria 316,458; confinamento 166,509
+{
+  const perto = (nome, got, exp, tolAbs) => { const p = Math.abs(got - exp) <= tolAbs; if (!p) falhas++; console.log((p ? "ok   " : "FALHA") + " " + nome + ": " + got.toFixed(3) + " (pptx " + exp + ")"); };
+  const fx = 359.795 * 18765.432 / (1405.537 - 287.657 - 166.509);
+  const r = C.lucroYpoti(C.mesclar(C.PADRAO_YPOTI, { desmamante: 21089.903, toreton: 18765.432, cambio: fx, venda: 4.867, pesoEntrada: 359.795, pesoSaida: 509.953, rc: 0.566, dias: 111.632, diaria: 2.577 }));
+  perto("pptx out/25 receita", r.conf.receita, 1405.537, 1.5);
+  perto("pptx out/25 engorda", r.conf.engorda, 287.657, 0.2);
+  perto("pptx out/25 lucro conf", r.conf.lucro, 166.509, 1.5);
+  perto("pptx out/25 lucro recria", r.recria.lucro, 316.458, 0.5);
+  if (!(r.global.tir > 0.1 && r.global.tir < 1)) throw new Error("TIR do ciclo fora do esperado: " + r.global.tir);
+  const b = C.mqoMulti([[1, 1], [1, 2], [1, 3], [1, 4]], [3, 5, 7, 9]);
+  perto("mqoMulti a", b[0], 1, 1e-9); perto("mqoMulti b", b[1], 2, 1e-9);
+}
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);

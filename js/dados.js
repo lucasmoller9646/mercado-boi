@@ -228,7 +228,8 @@
           out.vendas.push({ d, cab, lote: l[t.c("LOTE")] || "", cat: String(l[t.c("CATEGORIA")] || "").toUpperCase(), dono, rural: /RURAL\s*BIOENERG/.test(dono),
             preco: n(l, "Preço Venda U$/@"), gmd: n(l, "GMD"), dias: n(l, "Dias de cocho"), pesoIni: n(l, "PESO"), pesoFim: n(l, "PESO SAÍDA"), carc: n(l, "PESO CARCAZA"),
             rcIni: rcI, rcFin: rcF, cms, custoNutr: cms > 0 && diaAlim > 0 ? diaAlim / cms : null, gastosOp: diaria > 0 && diaAlim > 0 ? diaria - diaAlim : null,
-            custoKg: n(l, "Custo/Kg Prod."), lucro: n(l, "Lucro/cab Conf."), frig: l[t.c("Frigorifico")] || "" });
+            custoKg: n(l, "Custo/Kg Prod."), lucro: n(l, "Lucro/cab Conf."), frig: l[t.c("Frigorifico")] || "",
+            diaria: diaria > 0 ? diaria : null, entrada: n(l, "U$/Cab. Entrada"), custoConf: n(l, "Custo Conf."), receita: n(l, "Receita total") });
         }
         out.vendas.sort((a, b) => (a.d < b.d ? -1 : 1));
       } else avisos.push("resultados");
