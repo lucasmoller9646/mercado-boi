@@ -1,6 +1,6 @@
 /* Mercado do Boi — endereços das fontes e padrões. Nada aqui é segredo (a chave da ponte fica só no navegador). */
 window.MB_CONFIG = {
-  versao: "2026-11-27g",
+  versao: "2026-11-27h",
   planilhas: {
     gordo: { id: "1PSoOOJnJ2IdO6rn8fOx9Q8bTxSao6ioTN1oEbbp_qEs", aba: "Sheet1" },                 // Precios Valor Agro (raspagem diária)
     reposicao: { id: "1_UbGp17HuOGgBG5K1PZ5iEpHH0HApQAf9bCXhYwKB6Y", indicador: "INDICADOR", base: "BASE" }, // Preços de Invernada PY

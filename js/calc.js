@@ -305,6 +305,71 @@
     return { pontos: out, volDia: sd, tendDia: mt };
   }
 
+  // ---------------------------------------------------------------- termômetro técnico do câmbio
+  /** Notas dos sete métodos (−2 forte queda do dólar … +2 forte alta) no último ponto da série de fechamentos.
+      É a mesma conta do painel e do histórico do termômetro. */
+  function termometro(fech, limiar) {
+    const n = fech.length; if (n < 2) return null;
+    const faixa = (v, f, m) => (v == null ? null : v >= f ? 2 : v >= m ? 1 : v <= -f ? -2 : v <= -m ? -1 : 0);
+    const m10 = mms(fech, 10), m50 = mms(fech, 50), ifrS = ifr(fech, 14), pv = picosVales(fech, limiar || 0.02);
+    const mc = macd(fech), bb = bollinger(fech, 20, 2), ifrU = ifrS[n - 1], u = fech[n - 1];
+    const gap = m10[n - 1] != null && m50[n - 1] != null ? m10[n - 1] / m50[n - 1] - 1 : null;
+    const mom20 = n > 20 ? u / fech[n - 21] - 1 : null, mom60 = n > 60 ? u / fech[n - 61] - 1 : null;
+    const conf = pv.filter((x) => x.confirmado), ultPico = conf.filter((x) => x.tipo === "pico").pop(), ultVale = conf.filter((x) => x.tipo === "vale").pop();
+    const picos = conf.filter((x) => x.tipo === "pico").slice(-2), vales = conf.filter((x) => x.tipo === "vale").slice(-2);
+    let estr = null, estrTxt = "poucos pontos";
+    if (ultPico && ultVale) {
+      if (u > ultPico.v) { estr = 2; estrTxt = "rompeu a resistência de " + Math.round(ultPico.v); }
+      else if (u < ultVale.v) { estr = -2; estrTxt = "perdeu o suporte de " + Math.round(ultVale.v); }
+      else if (picos.length === 2 && vales.length === 2) {
+        const sobe = picos[1].v > picos[0].v && vales[1].v > vales[0].v, desce = picos[1].v < picos[0].v && vales[1].v < vales[0].v;
+        estr = sobe ? 1 : desce ? -1 : 0; estrTxt = sobe ? "topos e fundos ascendentes" : desce ? "topos e fundos descendentes" : "entre o suporte e a resistência";
+      } else { estr = 0; estrTxt = "entre o suporte e a resistência"; }
+    }
+    const pc = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + (v * 100).toFixed(1).replace(".", ",") + "%");
+    const metodos = [
+      { nome: "Médias de 10 e 50 dias", tipo: "tendência", nota: faixa(gap, 0.015, 0.002), det: gap == null ? "faltam dias" : "média curta " + pc(gap) + " sobre a longa" },
+      { nome: "Variação de 20 pregões", tipo: "tendência", nota: faixa(mom20, 0.03, 0.01), det: pc(mom20) },
+      { nome: "Variação de 60 pregões", tipo: "tendência", nota: faixa(mom60, 0.06, 0.02), det: pc(mom60) },
+      { nome: "MACD (12, 26, 9)", tipo: "tendência", nota: n < 35 ? null : (mc.hist[n - 1] > 0 ? (mc.macd[n - 1] > 0 ? 2 : 1) : mc.hist[n - 1] < 0 ? (mc.macd[n - 1] < 0 ? -2 : -1) : 0),
+        det: n < 35 ? "faltam dias" : "histograma " + (mc.hist[n - 1] > 0 ? "positivo" : "negativo") + ", linha " + (mc.macd[n - 1] > 0 ? "acima" : "abaixo") + " de zero" },
+      { nome: "Picos e vales", tipo: "tendência", nota: estr, det: estrTxt },
+      { nome: "IFR de 14 dias", tipo: "oscilador", nota: ifrU == null ? null : ifrU >= 80 ? -2 : ifrU >= 70 ? -1 : ifrU <= 20 ? 2 : ifrU <= 30 ? 1 : 0,
+        det: ifrU == null ? "faltam dias" : Math.round(ifrU) + (ifrU >= 70 ? ": sobrecomprado" : ifrU <= 30 ? ": sobrevendido" : ": zona neutra") },
+      { nome: "Bandas de Bollinger (20, 2)", tipo: "oscilador", nota: !bb ? null : bb.pctB >= 1 ? -2 : bb.pctB >= 0.85 ? -1 : bb.pctB <= 0 ? 2 : bb.pctB <= 0.15 ? 1 : 0,
+        det: !bb ? "faltam dias" : bb.pctB >= 0.85 ? "encostado na banda de cima" : bb.pctB <= 0.15 ? "encostado na banda de baixo" : "no meio das bandas" },
+    ];
+    const validos = metodos.filter((m) => m.nota != null), tend = validos.filter((m) => m.tipo === "tendência");
+    const sintese = validos.length ? media(validos.map((m) => m.nota)) : null, sinteseTend = tend.length ? media(tend.map((m) => m.nota)) : null;
+    return { metodos, sintese, sinteseTend, nValidos: validos.length, gap, mom20, mom60, bb, mc, m10, m50, ifr: ifrS, pv, conf, ultPico, ultVale };
+  }
+  /** Nota do termômetro em graus: −2…+2 vira 0…100 (50 = neutro). */
+  const grausTermo = (s) => (s == null ? null : ((s + 2) / 4) * 100);
+  /** O termômetro dia a dia numa série longa de fechamentos (d, v): para cada dia, a conta usa só os `janela` pregões até ele
+      (nada do futuro). Só entram dias com os sete métodos válidos. */
+  function historicoTermometro(d, v, limiar, janela) {
+    janela = janela || 250; const out = [];
+    for (let i = 70; i < v.length; i++) {
+      const t = termometro(v.slice(Math.max(0, i - janela + 1), i + 1), limiar);
+      if (t && t.nValidos === 7) out.push({ i, d: d[i], g: grausTermo(t.sintese), s: t.sintese });
+    }
+    return out;
+  }
+  /** O que o dólar fez depois: para cada horizonte (dias corridos), a variação até o primeiro fechamento a partir de d + h,
+      nos dias em que o termômetro esteve a até `tol` graus da leitura de hoje, e em todos os dias (para comparar). */
+  function efeitoTermometro(hist, d, v, graus, tol, horizontes) {
+    horizontes = horizontes || [7, 30, 60]; tol = tol == null ? 5 : tol;
+    const pos = (alvo, de) => { let lo = de, hi = d.length - 1; if (d[hi] < alvo) return -1; while (lo < hi) { const m = (lo + hi) >> 1; if (d[m] < alvo) lo = m + 1; else hi = m; } return lo; };
+    const resumo = (rs) => { const o = rs.slice().sort((a, b) => a - b); return o.length ? { n: o.length, med: quantil(o, 0.5), p10: quantil(o, 0.1), p90: quantil(o, 0.9), media: media(o), subiu: o.filter((x) => x > 0).length / o.length } : null; };
+    const parecido = hist.filter((h) => Math.abs(h.g - graus) <= tol + 1e-9);
+    let episodios = 0; for (let k = 0; k < parecido.length; k++) if (k === 0 || parecido[k].i - parecido[k - 1].i > 5) episodios++;
+    const porH = horizontes.map((h) => {
+      const ret = (lista) => lista.map((x) => { const j = pos(somaDias(x.d, h), x.i); return j < 0 || difDias(x.d, d[j]) > h + 6 ? null : v[j] / v[x.i] - 1; }).filter((r) => r != null);
+      return { h, parecido: resumo(ret(parecido)), todos: resumo(ret(hist)) };
+    });
+    return { graus, tol, nDias: parecido.length, episodios, desde: hist.length ? hist[0].d : null, horizontes: porH, ultimoParecido: parecido.length ? parecido[parecido.length - 1].d : null };
+  }
+
   // ---------------------------------------------------------------- lucratividade Ypoti (método da conta manual, "Rentabilidade Histórica")
   /** Padrões da conta manual: recria (com a RIP dentro) a custo fixo por cabeça, sem juros, quebra nem mortalidade. */
   const PADRAO_YPOTI = { pesoIni: 180, custoRecria: 100, diasRecria: 365, desmamante: 24000, toreton: 19000, cambio: 6460, venda: 5.8,
@@ -392,5 +457,5 @@
   }
 
   return { data, num, media, mediaPond, quantil, mesDe, anoDe, somaDias, difDias, segundaDe, mesesEntre, ultimoAte, porMes, preencher,
-    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar, PADRAO_YPOTI, lucroYpoti, mqoMulti, reguaQuad, pontoQuad };
+    basisSazonal, precoKg, desvio, mqo, PADRAO, xtir, lucratividade, mesclar, mediana, mms, ifr, picosVales, mqoPond, mme, macd, bollinger, projetar, termometro, grausTermo, historicoTermometro, efeitoTermometro, PADRAO_YPOTI, lucroYpoti, mqoMulti, reguaQuad, pontoQuad };
 });

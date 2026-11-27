@@ -28,8 +28,10 @@
 
   // ------------------------------------------------------------ séries embutidas (âncoras)
   async function ancoras() {
-    const [boi, milho] = await Promise.all([pegar("data/boi_ancora.json", "json"), pegar("data/milho_ancora.json", "json")]);
-    return { boi, milho };
+    const [boi, milho, pyg] = await Promise.all([pegar("data/boi_ancora.json", "json"), pegar("data/milho_ancora.json", "json"),
+      // dólar do BCP dia a dia desde 2010 (cotização referencial, gravada pelo robô): histórico do termômetro técnico
+      pegar("data/pyg_historico.json?t=" + Math.floor(Date.now() / 36e5), "json", 20000).then((j) => (j && j.d && j.d.length > 300 ? j : null)).catch(() => null)]);
+    return { boi, milho, pyg };
   }
 
   // ------------------------------------------------------------ boi gordo (Valor Agro)

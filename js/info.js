@@ -97,9 +97,9 @@
       ler: "Vela verde: o dólar subiu no dia; vermelha: caiu. Média curta acima da longa indica tendência de alta. O último pico confirmado funciona como resistência e o último vale, como suporte. A projeção não é previsão: diz onde o dólar tende a estar se continuar se comportando como nos últimos meses.",
     }),
     "g-cambio-termo": {
-      fonte: "Fechamentos diários do dólar do BCP.",
-      conta: "Sete métodos dão cada um uma nota de −2 (forte queda do dólar) a +2 (forte alta): médias de 10 e 50, variação de 20 e de 60 pregões, MACD e picos e vales (seguidores de tendência); IFR e bandas de Bollinger (osciladores). O ponteiro é a média das notas.",
-      ler: "Seguidores de tendência dizem para onde o dólar está indo. Osciladores fazem a leitura contrária: se subiu depressa demais, apontam queda. Quando os dois grupos discordam, o movimento pode estar perto de uma pausa. No estudo deste par, os seguidores de tendência funcionaram e os osciladores não.",
+      fonte: "Fechamentos diários do dólar do BCP. O quadro ao lado usa a cotização referencial do BCP dia a dia desde 2010 (Cotización Referencial de Monedas — Histórico Anual), que o robô do repositório atualiza.",
+      conta: "Sete métodos dão cada um uma nota de −2 (forte queda do dólar) a +2 (forte alta): médias de 10 e 50, variação de 20 e de 60 pregões, MACD e picos e vales (seguidores de tendência); IFR e bandas de Bollinger (osciladores). O ponteiro é a média das notas, mostrada também de 0 a 100 (50 = neutro). Para o quadro ao lado, a mesma conta foi refeita para cada dia desde 2010 usando só os 250 pregões até aquele dia (nada do futuro); pegam-se os dias em que a nota ficou a até 5 pontos da de hoje e mede-se a variação do dólar 7, 30 e 60 dias corridos depois: a mediana, a faixa onde caíram 80 % dos casos (do percentil 10 ao 90) e quantas vezes subiu. Em qualquer dia é a mesma medida sem filtrar pela nota, para comparar.",
+      ler: "Seguidores de tendência dizem para onde o dólar está indo. Osciladores fazem a leitura contrária: se subiu depressa demais, apontam queda. Quando os dois grupos discordam, o movimento pode estar perto de uma pausa. No estudo deste par, os seguidores de tendência funcionaram e os osciladores não. O quadro ao lado é o histórico, não uma garantia: dias seguidos com a mesma nota contam como um só episódio de mercado, então o número de episódios é que diz quanto a amostra pesa.",
     },
     "g-cambio-dia": {
       fonte: "Cortes de 30 minutos do BCP, de hoje e dos últimos 60 pregões.",

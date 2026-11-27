@@ -63,36 +63,8 @@
     const diaHoje = desv(hoje);
     const melhorVenda = tipico.length ? tipico.reduce((a, b) => (b.compra > a.compra ? b : a)) : null;   // quem vende dólar recebe a cotação de compra
     const melhorCompra = tipico.length ? tipico.reduce((a, b) => (b.venda < a.venda ? b : a)) : null;    // quem compra dólar paga a cotação de venda
-    // métodos de análise técnica → nota de −2 (forte queda do dólar) a +2 (forte alta)
-    const faixa = (v, f, m) => (v == null ? null : v >= f ? 2 : v >= m ? 1 : v <= -f ? -2 : v <= -m ? -1 : 0);
-    const mc = C.macd(fech), bb = C.bollinger(fech, 20, 2), ifrU = ifr[n - 1], u = fech[n - 1];
-    const gap = m10[n - 1] != null && m50[n - 1] != null ? m10[n - 1] / m50[n - 1] - 1 : null;
-    const mom20 = n > 20 ? u / fech[n - 21] - 1 : null, mom60 = n > 60 ? u / fech[n - 61] - 1 : null;
-    const picos = conf.filter((x) => x.tipo === "pico").slice(-2), vales = conf.filter((x) => x.tipo === "vale").slice(-2);
-    let estr = null, estrTxt = "poucos pontos";
-    if (ultPico && ultVale) {
-      if (u > ultPico.v) { estr = 2; estrTxt = "rompeu a resistência de " + Math.round(ultPico.v); }
-      else if (u < ultVale.v) { estr = -2; estrTxt = "perdeu o suporte de " + Math.round(ultVale.v); }
-      else if (picos.length === 2 && vales.length === 2) {
-        const sobe = picos[1].v > picos[0].v && vales[1].v > vales[0].v, desce = picos[1].v < picos[0].v && vales[1].v < vales[0].v;
-        estr = sobe ? 1 : desce ? -1 : 0; estrTxt = sobe ? "topos e fundos ascendentes" : desce ? "topos e fundos descendentes" : "entre o suporte e a resistência";
-      } else { estr = 0; estrTxt = "entre o suporte e a resistência"; }
-    }
-    const pc = (v) => (v == null ? "–" : (v > 0 ? "+" : "") + (v * 100).toFixed(1).replace(".", ",") + "%");
-    const metodos = [
-      { nome: "Médias de 10 e 50 dias", tipo: "tendência", nota: faixa(gap, 0.015, 0.002), det: gap == null ? "faltam dias" : "média curta " + pc(gap) + " sobre a longa" },
-      { nome: "Variação de 20 pregões", tipo: "tendência", nota: faixa(mom20, 0.03, 0.01), det: pc(mom20) },
-      { nome: "Variação de 60 pregões", tipo: "tendência", nota: faixa(mom60, 0.06, 0.02), det: pc(mom60) },
-      { nome: "MACD (12, 26, 9)", tipo: "tendência", nota: n < 35 ? null : (mc.hist[n - 1] > 0 ? (mc.macd[n - 1] > 0 ? 2 : 1) : mc.hist[n - 1] < 0 ? (mc.macd[n - 1] < 0 ? -2 : -1) : 0),
-        det: n < 35 ? "faltam dias" : "histograma " + (mc.hist[n - 1] > 0 ? "positivo" : "negativo") + ", linha " + (mc.macd[n - 1] > 0 ? "acima" : "abaixo") + " de zero" },
-      { nome: "Picos e vales", tipo: "tendência", nota: estr, det: estrTxt },
-      { nome: "IFR de 14 dias", tipo: "oscilador", nota: ifrU == null ? null : ifrU >= 80 ? -2 : ifrU >= 70 ? -1 : ifrU <= 20 ? 2 : ifrU <= 30 ? 1 : 0,
-        det: ifrU == null ? "faltam dias" : Math.round(ifrU) + (ifrU >= 70 ? ": sobrecomprado" : ifrU <= 30 ? ": sobrevendido" : ": zona neutra") },
-      { nome: "Bandas de Bollinger (20, 2)", tipo: "oscilador", nota: !bb ? null : bb.pctB >= 1 ? -2 : bb.pctB >= 0.85 ? -1 : bb.pctB <= 0 ? 2 : bb.pctB <= 0.15 ? 1 : 0,
-        det: !bb ? "faltam dias" : bb.pctB >= 0.85 ? "encostado na banda de cima" : bb.pctB <= 0.15 ? "encostado na banda de baixo" : "no meio das bandas" },
-    ];
-    const validos = metodos.filter((m) => m.nota != null), tend = validos.filter((m) => m.tipo === "tendência");
-    const sintese = validos.length ? C.media(validos.map((m) => m.nota)) : null, sinteseTend = tend.length ? C.media(tend.map((m) => m.nota)) : null;
+    // métodos de análise técnica → nota de −2 (forte queda do dólar) a +2 (forte alta); mesma conta do histórico do termômetro (calc.js)
+    const T = C.termometro(fech, S.limiarPivo || 0.02), metodos = T.metodos, sintese = T.sintese, sinteseTend = T.sinteseTend, bb = T.bb;
     // projeção: 42 pregões (≈ 60 dias corridos); o 21º pregão ≈ 30 dias
     const proj = C.projetar(fech, 42);
     if (proj) { let d = hoje.d; proj.pontos.forEach((pt) => { do { d = C.somaDias(d, 1); } while ([0, 6].indexOf(new Date(d + "T12:00:00Z").getUTCDay()) >= 0); pt.d = d; }); }
@@ -104,6 +76,7 @@
       aberto: mercadoAberto() && hoje.d === ag.d, chave: hoje.d + " " + ult.h + " " + ult.compra + " " + ult.venda };
   }
 
+  let cacheTermo = null;   // histórico do termômetro: só recalcula quando a série longa muda
   function montar(D, S) {
     const M = { hoje: hojeISO(), S };
     const mesAtual = C.mesDe(M.hoje);
@@ -116,6 +89,16 @@
     D.fx.histPyg.d.forEach((d, i) => fxMapa.set(d, D.fx.histPyg.v[i]));
     // câmbio do BCP (referencial do mercado flutuante): quando existe, é ele que vale no painel inteiro
     M.cambio = cambio(D.yp.cambioBcp, S);
+    // o que o dólar fez depois, nas vezes em que o termômetro marcou parecido (série longa do BCP desde 2010)
+    if (M.cambio && M.cambio.sintese != null) {
+      M.cambio.graus = C.grausTermo(M.cambio.sintese);
+      const P = D.anc && D.anc.pyg;
+      if (P) {
+        const lim = S.limiarPivo || 0.02, chave = P.d.length + P.d[P.d.length - 1] + lim;
+        if (!cacheTermo || cacheTermo.chave !== chave) cacheTermo = { chave, hist: C.historicoTermometro(P.d, P.v, lim, 250) };
+        M.cambio.termoHist = C.efeitoTermometro(cacheTermo.hist, P.d, P.v, M.cambio.graus, S.termoTol || 5, [7, 30, 60]);
+      }
+    }
     if (M.cambio) M.cambio.dias.forEach((x) => fxMapa.set(x.d, x.ref));
     const fxD = [...fxMapa.keys()].sort(), fxV = fxD.map((d) => fxMapa.get(d));
     const pygHoje = (M.cambio && M.cambio.ref) || D.fx.pyg || (fxV.length ? fxV[fxV.length - 1] : null);

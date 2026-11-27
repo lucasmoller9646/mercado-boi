@@ -90,5 +90,20 @@ ok("projeção leque cresce com a raiz do tempo", Math.log(pj.pontos[39].s80 / p
   perto("régua 2º grau k", g.k, 1.1, 1e-6); perto("régua 2º grau c", g.c, 90, 1e-4); perto("régua 2º grau q", g.q, -0.0004, 1e-9);
   const pt = C.pontoQuad(10000, g, 180); perto("β marginal em 180 kg", pt.b, 10000 * (1.1 - 2 * 0.0004 * 180), 1e-3);
 }
+// ---- termômetro: histórico sem olhar o futuro e o que o dólar fez depois
+{
+  let sem = 11; const rnd = () => { sem = (sem * 16807) % 2147483647; return sem / 2147483647 - 0.5; };
+  const d = ["2015-01-05"], v = [6000];
+  for (let i = 1; i < 900; i++) { v.push(v[i - 1] * (1 + Math.sin(i / 70) * 0.0012 + rnd() * 0.005)); let x = C.somaDias(d[i - 1], 1); while ([0, 6].includes(new Date(x + "T12:00Z").getUTCDay())) x = C.somaDias(x, 1); d.push(x); }
+  const H = C.historicoTermometro(d, v, 0.02, 250), h = H[Math.floor(H.length / 2)];
+  eq("termômetro do dia = conta só com os 250 pregões até ele", C.termometro(v.slice(h.i - 249, h.i + 1), 0.02).sintese, h.s);
+  const v2 = v.slice(); for (let i = h.i + 1; i < v2.length; i++) v2[i] *= 1.3;
+  eq("mexer no futuro não muda a nota do dia", C.historicoTermometro(d, v2, 0.02, 250).find((x) => x.i === h.i).s, h.s);
+  eq("graus: neutro = 50", C.grausTermo(0), 50);
+  const E = C.efeitoTermometro(H, d, v, h.g, 5, [30]), r = E.horizontes[0];
+  const manual = H.filter((x) => Math.abs(x.g - h.g) <= 5 + 1e-9).map((x) => { const alvo = C.somaDias(x.d, 30), j = d.findIndex((q) => q >= alvo); return j < 0 || C.difDias(x.d, d[j]) > 36 ? null : v[j] / v[x.i] - 1; }).filter((q) => q != null);
+  eq("dias parecidos com 30 dias à frente", r.parecido.n, manual.length);
+  ok("mediana a 30 dias", r.parecido.med, C.mediana(manual), 1e-12);
+}
 console.log(falhas ? "\n" + falhas + " FALHA(S)" : "\nTudo confere.");
 process.exit(falhas ? 1 : 0);

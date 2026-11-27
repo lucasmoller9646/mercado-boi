@@ -156,7 +156,17 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
 
 /* ---------- termômetro técnico */
 .corpo.termo { display: flex; flex-direction: column; gap: .2rem; }
-.termo-rel { position: relative; flex: 0 0 34%; min-height: 4.5rem; }
+.termo-topo { display: flex; gap: .5rem; flex: 0 0 38%; min-height: 6.5rem; }
+.termo-rel { position: relative; flex: 0 0 44%; min-height: 4.5rem; }
+/* o que o dólar fez depois de leituras parecidas do termômetro */
+.termo-hist { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: .15rem; font-size: .7rem; color: var(--tinta-2); }
+.termo-hist .th-tit { margin: 0; color: var(--tinta); font-weight: 600; font-size: .74rem; line-height: 1.2; }
+.termo-hist .th-rod { margin: 0; color: var(--tinta-3); font-size: .62rem; line-height: 1.25; }
+.th-tab { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.th-tab th, .th-tab td { padding: .1rem .25rem; text-align: right; white-space: nowrap; border-bottom: 1px solid rgba(255,255,255,.08); }
+.th-tab thead th { font-weight: 500; color: var(--tinta-3); font-size: .6rem; text-transform: uppercase; letter-spacing: .04em; }
+.th-tab tbody th { text-align: left; font-weight: 500; color: var(--tinta-2); }
+.th-tab td:first-of-type { color: var(--tinta); font-weight: 700; }
 #metodos-cambio { flex: 1; min-height: 0; }
 .conta.metodos th small { display: block; font-size: .66rem; color: var(--tinta-3); line-height: 1.2; }
 .conta.metodos td { vertical-align: middle; }
@@ -229,7 +239,9 @@ body:not(.parado) .discreto, .discreto:focus-visible { opacity: .85; }
   .segmentado { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; overflow-x: auto; }
   .cotacoes { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; overflow-x: auto; scrollbar-width: none; }
   .cartao > header { flex-wrap: wrap; }
-  .termo-rel { flex: 0 0 9rem; }
+  .termo-topo { flex: none; flex-wrap: wrap; }
+  .termo-rel { flex: 1 1 12rem; height: 9rem; }
+  .termo-hist { flex: 1 1 15rem; }
   .segmentado button { flex: 1; }
   .palco { position: static; }
   .tela { position: static; display: none; opacity: 1; visibility: visible; transform: none; }

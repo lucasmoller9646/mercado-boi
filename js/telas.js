@@ -458,7 +458,7 @@
     const ids = ["g-cambio-hist", "g-cambio-termo", "g-cambio-dia", "g-cambio-ifr"];
     if (!X) {
       kpis("kpis-cambio", [{ rotulo: "Dólar BCP", valor: null, nota: "aguardando dados" }]);
-      ids.forEach((id) => desenhar(id, null, semDados)); document.getElementById("tecnica-cambio").innerHTML = '<p class="vazio">' + semDados + "</p>"; document.getElementById("metodos-cambio").innerHTML = ""; return;
+      ids.forEach((id) => desenhar(id, null, semDados)); document.getElementById("tecnica-cambio").innerHTML = '<p class="vazio">' + semDados + "</p>"; document.getElementById("metodos-cambio").innerHTML = ""; document.getElementById("termo-hist").innerHTML = ""; return;
     }
     const u = X.ult, n = X.dias.length, g0 = (v) => F.n(v, 0), g2 = (v) => F.n(v, 2), dm = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
     const viva = X.aberto ? '<i class="luz-viva"></i>' : "", P = X.proj ? X.proj.pontos : [], p30 = P[20] || null, p60 = P[41] || null;
@@ -518,13 +518,26 @@
         axisLine: { roundCap: false, lineStyle: { width: Math.max(8, raio * 0.16), color: NOTAS.map((q, i) => [(i + 1) / 5, q.c]) } },
         pointer: { length: "68%", width: Math.max(4, r * 0.34), itemStyle: { color: COR.tinta } }, anchor: { show: true, size: r * 0.75, itemStyle: { color: COR.tinta, borderColor: "#06130C", borderWidth: 2 } },
         axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false }, title: { show: false },
-        detail: { show: true, offsetCenter: [0, "30%"], formatter: () => sint.t.toUpperCase(), color: sint.c, fontSize: r * 1.02, fontWeight: 700, backgroundColor: "rgba(6,19,12,.5)", padding: [3, 8], borderRadius: 6 },
+        detail: { show: true, offsetCenter: [0, "30%"], formatter: () => "{t|" + sint.t.toUpperCase() + "}" + (X.graus != null ? "  {g|" + Math.round(X.graus) + "/100}" : ""), backgroundColor: "rgba(6,19,12,.5)", padding: [3, 8], borderRadius: 6,
+          rich: { t: { color: sint.c, fontSize: r * 1.02, fontWeight: 700 }, g: { color: COR.tinta, fontSize: r * 0.82, fontWeight: 600 } } },
         data: [{ value: +X.sintese.toFixed(2) }] }] } : null, "Faltam dias de histórico para a leitura técnica.");
     const escala = (nota) => '<span class="escala">' + NOTAS.map((q, i) => '<i' + (nota != null && i === nota + 2 ? ' class="on" style="background:' + q.c + '"' : "") + "></i>").join("") + "</span>";
     const linhaMet = (m) => "<tr><th>" + m.nome + "<small>" + m.det + "</small></th><td>" + escala(m.nota) + "</td><td class='rec' style='color:" + (m.nota == null ? "inherit" : NOTAS[m.nota + 2].c) + "'>" + (m.nota == null ? "–" : NOTAS[m.nota + 2].t) + "</td></tr>";
     const grupo = (tipo, titulo) => { const ms = X.metodos.filter((m) => m.tipo === tipo); return ms.length ? "<tr class='grupo'><th colspan='3'>" + titulo + "</th></tr>" + ms.map(linhaMet).join("") : ""; };
     document.getElementById("metodos-cambio").innerHTML = '<table class="conta metodos"><tbody>' + grupo("tendência", "Seguidores de tendência · dizem para onde o dólar está indo") +
       grupo("oscilador", "Osciladores · avisam de exagero, leitura contrária") + "</tbody></table>";
+    // ---- ao lado do ponteiro: o que o dólar fez depois, nas vezes em que o termômetro marcou parecido (BCP desde 2010)
+    const TH = X.termoHist, elH = document.getElementById("termo-hist");
+    const pp = (v) => (v == null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + F.n(Math.abs(v) * 100, 1) + "%");
+    if (!TH || !TH.nDias) elH.innerHTML = X.graus == null ? "" : '<p class="th-rod">' + (TH ? "Nenhum dia desde " + (TH.desde || "2010").slice(0, 4) + " com leitura parecida no dólar do BCP." : "Aguardando a série longa do BCP.") + "</p>";
+    else {
+      const lo = Math.max(0, Math.round(TH.graus - TH.tol)), hi = Math.min(100, Math.round(TH.graus + TH.tol)), t30 = TH.horizontes.find((h) => h.h === 30);
+      elH.innerHTML = '<p class="th-tit">Nas vezes em que marcou de ' + lo + " a " + hi + "/100, o dólar depois:</p>" +
+        '<table class="th-tab"><thead><tr><th></th><th>mediana</th><th>80% das vezes</th><th>subiu</th></tr></thead><tbody>' +
+        TH.horizontes.map((h) => { const p = h.parecido; return "<tr><th>" + h.h + " dias</th><td>" + (p ? pp(p.med) : "–") + "</td><td>" + (p ? pp(p.p10) + " a " + pp(p.p90) : "–") + "</td><td>" + (p ? F.n(p.subiu * 100, 0) + "%" : "–") + "</td></tr>"; }).join("") +
+        '</tbody></table><p class="th-rod">' + F.n(TH.nDias, 0) + " dias em " + TH.episodios + " episódios desde " + TH.desde.slice(0, 4) +
+        (t30 && t30.todos ? " · em qualquer dia, 30 dias: " + pp(t30.todos.med) + " (" + pp(t30.todos.p10) + " a " + pp(t30.todos.p90) + ")" : "") + "</p>";
+    }
 
     // ---- o dia: compra e venda de hoje sobre o dia típico dos últimos 60 pregões
     const cortes = [...new Set(["08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"].concat(X.tipico.map((t) => t.h)))].sort();
