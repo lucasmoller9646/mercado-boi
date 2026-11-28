@@ -1,0 +1,86 @@
+{
+ "atualizado": "2026-11-28T10:49:28Z",
+ "itens": [
+  {
+   "id": "boi",
+   "rot": "Boi PY",
+   "val": 5.0,
+   "dec": 2,
+   "un": "US$/kg carcaça",
+   "var": -0.029126213592233108,
+   "quando": "2026-11-25",
+   "fonte": "Valor Agro, novillo"
+  },
+  {
+   "id": "boisp",
+   "rot": "Boi SP",
+   "val": 398.2,
+   "dec": 2,
+   "un": "R$/@",
+   "var": 0.002,
+   "quando": "2026-11-27",
+   "fonte": "Indicador do Boi DATAGRO"
+  },
+  {
+   "id": "bezerro",
+   "rot": "Bezerro 180 kg",
+   "val": 22103.0,
+   "dec": 0,
+   "un": "Gs/kg vivo",
+   "var": -0.01299455211217293,
+   "quando": "2026-11-23",
+   "fonte": "Indicador dos leilões, semana"
+  },
+  {
+   "id": "bgi",
+   "rot": "BGIZ26",
+   "val": 407.1,
+   "dec": 2,
+   "un": "R$/@",
+   "var": 0.001352847128274437,
+   "quando": "2026-11-28 07:49:30",
+   "fonte": "B3, vencimento mais líquido"
+  },
+  {
+   "id": "ccm",
+   "rot": "CCMF27",
+   "val": 70.09,
+   "dec": 2,
+   "un": "R$/saca",
+   "var": 0.0007138777841233512,
+   "quando": "2026-11-28 07:49:31",
+   "fonte": "B3, vencimento mais líquido"
+  },
+  {
+   "id": "cme",
+   "rot": "CME Z26",
+   "val": 446.75,
+   "dec": 0,
+   "un": "¢/bushel",
+   "var": 0.02878526194588371,
+   "quando": "2026-11-27 15:04",
+   "fonte": "Milho em Chicago"
+  },
+  {
+   "id": "pyg",
+   "rot": "Gs/US$",
+   "val": 6397.95,
+   "val2": 6401.72,
+   "dec": 0,
+   "un": "compra · venda",
+   "var": -0.006651821023324844,
+   "quando": "2026-11-27 13:00",
+   "fonte": "BCP, corte de 30 minutos"
+  },
+  {
+   "id": "brl",
+   "rot": "R$/US$",
+   "val": 5.5582,
+   "dec": 3,
+   "un": "R$ por dólar",
+   "var": -0.0655346334902488,
+   "quando": "2026-11-27 19:09",
+   "fonte": "Dólar comercial"
+  }
+ ]
+}
